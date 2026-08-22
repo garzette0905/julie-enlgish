@@ -92,10 +92,14 @@ export async function renderHome(view) {
 
   // PC 로 보는 중이면 휴대폰으로 옮겨 갈 수 있게 QR 을 오른쪽에 작게 둔다.
   // (이미 휴대폰으로 보고 있다면 쓸모가 없어 CSS 에서 감춘다)
+  // 전단지·현수막에 쓸 수 있게 큰 그림 파일을 내려받는 링크도 같이 둔다.
   view.append(html(`<div class="wrap qr-row">
     <div class="qr-box">
-      <img src="/assets/qr-site.png" alt="www.julieenglish.co.kr 접속 QR 코드" width="72" height="72">
-      <span>휴대폰으로<br>보기</span>
+      <img src="/assets/qr-site.png" alt="www.julieenglish.co.kr 접속 QR 코드" width="96" height="96">
+      <span class="qr-text">휴대폰으로<br>보기
+        <a class="qr-save" href="/assets/qr-julie-english.png"
+           download="julie-english-qr.png">QR 이미지 저장</a>
+      </span>
     </div>
   </div>`));
 

@@ -429,11 +429,18 @@ table.data .badge { white-space: nowrap; }
   background: #fff; border: 1px solid var(--border); border-radius: 12px;
   padding: 8px 12px 8px 8px; box-shadow: var(--shadow-sm);
 }
-.qr-box img { width: 62px; height: 62px; display: block; }
-.qr-box span {
+.qr-box img { width: 96px; height: 96px; display: block; }
+.qr-box .qr-text {
   font-size: 11.5px; font-weight: 600; color: var(--text-muted);
   line-height: 1.35; letter-spacing: -0.02em; white-space: nowrap;
 }
+/* 전단지·현수막에 쓸 큰 그림(1148px) 을 내려받는 링크 */
+.qr-save {
+  display: block; margin-top: 7px; font-size: 11px; font-weight: 700;
+  color: var(--navy); letter-spacing: -0.02em;
+}
+.qr-save::before { content: "\2913  "; }
+.qr-save:hover { color: var(--red); text-decoration: underline; }
 @media (max-width: 760px) { .qr-row { display: none; } }
 
 /* 특징 카드 */

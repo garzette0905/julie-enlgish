@@ -6,6 +6,8 @@ Cloudflare Workers 위에서 돌아가고, 데이터는 D1(SQLite), 사진·동�
 주소: <https://www.julieenglish.co.kr>
 (www 없이 <https://julieenglish.co.kr> 로도 열리고, 예전 주소 <https://julie-enlgish.wepiclab.workers.dev> 도 그대로 동작합니다)
 
+앞으로 개발할 내용은 [ROADMAP.md](ROADMAP.md) 에 정리해 두었습니다.
+
 ## 화면
 
 | 메뉴 | 주소 | 설명 |

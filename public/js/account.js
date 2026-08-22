@@ -120,10 +120,17 @@ function drawSignup(root, switchTo) {
         </div>
       </div>
 
+      <div class="field">
+        <label for="su-parent-phone">학부모 연락처 <span style="color:var(--red)">*</span></label>
+        <input id="su-parent-phone" name="parent_phone" type="tel" inputmode="tel"
+               placeholder="010-0000-0000" autocomplete="tel">
+        <div class="hint">수업 안내와 상담 연락이 이 번호로 갑니다.</div>
+      </div>
+
       <div class="grid-2">
         <div class="field">
-          <label for="su-phone">전화번호</label>
-          <input id="su-phone" name="phone" type="tel" placeholder="010-0000-0000">
+          <label for="su-phone">학생 연락처</label>
+          <input id="su-phone" name="phone" type="tel" inputmode="tel" placeholder="없으면 비워 두세요">
         </div>
         <div class="field">
           <label for="su-email">이메일</label>
@@ -188,6 +195,11 @@ function drawSignup(root, switchTo) {
     if (!data.password) return toast("비밀번호를 입력해 주세요.", true);
     if (data.password !== pw2) return toast("비밀번호 확인이 일치하지 않습니다.", true);
     if (!data.name.trim()) return toast("학생 이름을 입력해 주세요.", true);
+    if (!String(data.parent_phone || "").trim()) {
+      toast("학부모 연락처를 입력해 주세요.", true);
+      $("#su-parent-phone", card).focus();
+      return;
+    }
 
     // 중복확인을 안 눌렀으면 제출 직전에 대신 확인해 준다.
     if (checkedId !== data.login_id.trim()) {
@@ -207,6 +219,7 @@ function drawSignup(root, switchTo) {
         grade: data.grade,
         class_no: data.class_no,
         phone: data.phone,
+        parent_phone: data.parent_phone,
         email: data.email,
       });
       root.innerHTML = `<div class="panel-card" style="text-align:center">
@@ -328,11 +341,15 @@ export async function renderMe(view) {
           </div>
 
           <div class="grid-2">
-            <div class="field"><label for="me-phone">전화번호</label>
-              <input id="me-phone" name="phone" type="tel" value="${esc(u.phone || "")}"></div>
-            <div class="field"><label for="me-email">이메일</label>
-              <input id="me-email" name="email" type="email" value="${esc(u.email || "")}"></div>
+            <div class="field"><label for="me-parent-phone">학부모 연락처</label>
+              <input id="me-parent-phone" name="parent_phone" type="tel" inputmode="tel"
+                     value="${esc(u.parent_phone || "")}" placeholder="010-0000-0000"></div>
+            <div class="field"><label for="me-phone">학생 연락처</label>
+              <input id="me-phone" name="phone" type="tel" inputmode="tel" value="${esc(u.phone || "")}"></div>
           </div>
+
+          <div class="field"><label for="me-email">이메일</label>
+            <input id="me-email" name="email" type="email" value="${esc(u.email || "")}"></div>
 
           <hr style="border:0;border-top:1px solid var(--border);margin:22px 0">
           <h3 style="font-size:16px;color:var(--navy);margin-bottom:6px">비밀번호 변경</h3>
@@ -397,6 +414,7 @@ export async function renderMe(view) {
       grade: data.grade,
       class_no: data.class_no,
       phone: data.phone,
+      parent_phone: data.parent_phone,
       email: data.email,
     };
     if (nw) {

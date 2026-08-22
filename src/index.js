@@ -546,6 +546,7 @@ function publicUser(u) {
     grade: u.grade,
     class_no: u.class_no,
     phone: u.phone,
+    parent_phone: u.parent_phone,
     email: u.email,
     note: u.role === "admin" ? u.note : undefined,
   };
@@ -624,6 +625,14 @@ function validatePassword(password) {
   return null;
 }
 
+/** 전화번호는 형식을 강하게 묶지 않는다. 숫자가 몇 개 들어 있는지만 본다. */
+function validatePhone(phone, label) {
+  const digits = String(phone || "").replace(/[^0-9]/g, "");
+  if (digits.length < 9) return `${label}를 정확히 입력해 주세요.`;
+  if (digits.length > 15) return `${label}가 너무 깁니다.`;
+  return null;
+}
+
 async function signup(request, env) {
   const body = await readJson(request);
   const loginId = norm(body.login_id);
@@ -637,12 +646,25 @@ async function signup(request, env) {
   const pwProblem = validatePassword(password);
   if (pwProblem) throw bad(pwProblem);
 
+  // 학부모 연락처는 반드시 받는다 — 승인·상담·알림이 모두 이 번호로 간다.
+  const parentPhone = norm(body.parent_phone);
+  if (!parentPhone) throw bad("학부모 연락처를 입력해 주세요.");
+  const parentProblem = validatePhone(parentPhone, "학부모 연락처");
+  if (parentProblem) throw bad(parentProblem);
+
+  // 학생 연락처는 있으면 받고, 없으면 넘어간다.
+  const studentPhone = norm(body.phone);
+  if (studentPhone) {
+    const studentProblem = validatePhone(studentPhone, "학생 연락처");
+    if (studentProblem) throw bad(studentProblem);
+  }
+
   const dup = await env.DB.prepare(`SELECT id FROM users WHERE login_id = ?1`).bind(loginId).first();
   if (dup) throw bad("이미 사용 중인 아이디입니다.");
 
   await env.DB.prepare(
-    `INSERT INTO users (login_id, password_hash, name, role, status, school, grade, class_no, phone, email)
-     VALUES (?1, ?2, ?3, 'student', 'pending', ?4, ?5, ?6, ?7, ?8)`
+    `INSERT INTO users (login_id, password_hash, name, role, status, school, grade, class_no, phone, parent_phone, email)
+     VALUES (?1, ?2, ?3, 'student', 'pending', ?4, ?5, ?6, ?7, ?8, ?9)`
   )
     .bind(
       loginId,
@@ -651,7 +673,8 @@ async function signup(request, env) {
       norm(body.school),
       norm(body.grade),
       norm(body.class_no),
-      norm(body.phone),
+      studentPhone,
+      parentPhone,
       norm(body.email)
     )
     .run();
@@ -694,7 +717,7 @@ async function updateMe(request, env, me) {
     if (!name) throw bad("이름을 비울 수 없습니다.");
     put("name", name);
   }
-  for (const col of ["school", "grade", "class_no", "phone", "email"]) {
+  for (const col of ["school", "grade", "class_no", "phone", "parent_phone", "email"]) {
     if (body[col] !== undefined) put(col, norm(body[col]));
   }
 
@@ -841,8 +864,8 @@ async function adminCreateUser(request, env) {
   if (dup) throw bad("이미 사용 중인 아이디입니다.");
 
   const res = await env.DB.prepare(
-    `INSERT INTO users (login_id, password_hash, name, role, status, school, grade, class_no, phone, email, note)
-     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)`
+    `INSERT INTO users (login_id, password_hash, name, role, status, school, grade, class_no, phone, parent_phone, email, note)
+     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)`
   )
     .bind(
       loginId,
@@ -854,6 +877,7 @@ async function adminCreateUser(request, env) {
       norm(body.grade),
       norm(body.class_no),
       norm(body.phone),
+      norm(body.parent_phone),
       norm(body.email),
       norm(body.note)
     )
@@ -893,7 +917,7 @@ async function adminUpdateUser(request, env, id) {
     if (!name) throw bad("이름을 비울 수 없습니다.");
     put("name", name);
   }
-  for (const col of ["school", "grade", "class_no", "phone", "email", "note"]) {
+  for (const col of ["school", "grade", "class_no", "phone", "parent_phone", "email", "note"]) {
     if (body[col] !== undefined) put(col, norm(body[col]));
   }
   if (body.status !== undefined) put("status", body.status);
@@ -1039,7 +1063,7 @@ async function adminUpdateClass(request, env, id) {
 
 async function classStudents(env, classId) {
   const { results } = await env.DB.prepare(
-    `SELECT e.id AS enrollment_id, u.id, u.name, u.school, u.grade, u.class_no, u.phone, u.status
+    `SELECT e.id AS enrollment_id, u.id, u.name, u.school, u.grade, u.class_no, u.phone, u.parent_phone, u.status
        FROM enrollments e JOIN users u ON u.id = e.user_id
       WHERE e.class_id = ?1 ORDER BY u.name`
   )
@@ -1681,7 +1705,7 @@ async function adminUpdateInquiry(request, env, id) {
 
 /**
  * 알림 보낼 대상을 고르기 쉽도록 원생을 클래스별로 묶어서 준다.
- * 실제로 알림이 가는 곳은 학생 본인이 아니라 그 학생의 학부모 번호(phone)다.
+ * 실제로 알림이 가는 곳은 학생 본인이 아니라 그 학생의 학부모 번호(parent_phone)다.
  * 어느 클래스에도 연결되지 않은 원생은 맨 끝에 따로 모아 둔다.
  */
 async function adminRoster(env) {
@@ -1691,7 +1715,7 @@ async function adminRoster(env) {
   ).all();
 
   const rows = await env.DB.prepare(
-    `SELECT u.id, u.name, u.school, u.grade, u.class_no, u.phone, u.status, e.class_id
+    `SELECT u.id, u.name, u.school, u.grade, u.class_no, u.phone, u.parent_phone, u.status, e.class_id
        FROM users u
        LEFT JOIN enrollments e ON e.user_id = u.id
       WHERE u.role != 'admin'
@@ -1705,7 +1729,7 @@ async function adminRoster(env) {
   for (const r of rows.results || []) {
     const student = {
       id: r.id, name: r.name, school: r.school, grade: r.grade,
-      class_no: r.class_no, phone: r.phone, status: r.status,
+      class_no: r.class_no, phone: r.phone, parent_phone: r.parent_phone, status: r.status,
     };
     if (r.class_id) {
       (byClass[r.class_id] = byClass[r.class_id] || []).push(student);
@@ -1717,7 +1741,7 @@ async function adminRoster(env) {
     if (!seen.has(r.id) && !unassigned.some((u) => u.id === r.id)) {
       unassigned.push({
         id: r.id, name: r.name, school: r.school, grade: r.grade,
-        class_no: r.class_no, phone: r.phone, status: r.status,
+        class_no: r.class_no, phone: r.phone, parent_phone: r.parent_phone, status: r.status,
       });
     }
   }
@@ -1738,7 +1762,7 @@ async function adminTuition(env, url) {
   if (!month || !MONTH_RE.test(month)) throw bad("조회할 달을 골라 주세요.");
 
   const { results } = await env.DB.prepare(
-    `SELECT u.id, u.name, u.school, u.grade, u.class_no, u.phone, u.status,
+    `SELECT u.id, u.name, u.school, u.grade, u.class_no, u.phone, u.parent_phone, u.status,
             (SELECT group_concat(c.name, ', ')
                FROM enrollments e JOIN classes c ON c.id = e.class_id
               WHERE e.user_id = u.id) AS class_names,

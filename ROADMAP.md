@@ -46,7 +46,7 @@
 | 관리자 → 원비관리 | `public/js/admin.js` 의 `adminTuitionScreen()` | `#tu-send` |
 
 대상 선택과 내용 작성까지는 동작하므로, 실제 발송만 이어 붙이면 된다.
-연락처는 이미 `users.phone`, `inquiries.parent_phone` 에 들어 있다.
+연락처는 이미 `users.parent_phone`(학부모, 필수), `inquiries.parent_phone` 에 들어 있다.
 
 ### 해야 할 일
 

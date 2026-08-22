@@ -285,7 +285,7 @@ function drawStudentTable(table, users, reload) {
   }
   table.innerHTML = `
     <thead><tr>
-      <th>이름</th><th>아이디</th><th>학교 / 학년 / 반</th><th>연락처</th>
+      <th>이름</th><th>아이디</th><th>학교 / 학년 / 반</th><th>학부모 연락처</th>
       <th>클래스</th><th>상태</th><th>상담</th><th></th>
     </tr></thead>
     <tbody>${users
@@ -294,7 +294,7 @@ function drawStudentTable(table, users, reload) {
           <td><b>${esc(u.name)}</b>${u.role === "admin" ? ` <span class="badge red">관리자</span>` : ""}</td>
           <td style="color:var(--text-muted)">${esc(u.login_id)}</td>
           <td>${esc([u.school, u.grade, u.class_no].filter(Boolean).join(" / ")) || "-"}</td>
-          <td style="color:var(--text-muted)">${esc(u.phone || "-")}</td>
+          <td style="color:var(--text-muted)">${esc(u.parent_phone || "-")}</td>
           <td>${esc(u.class_names || "-")}</td>
           <td><span class="badge ${STATUS_BADGE[u.status] || "gray"}">${esc(STATUS_KR[u.status] || u.status)}</span></td>
           <td>${u.counsel_count ? `<span class="badge">${u.counsel_count}건</span>` : "-"}</td>
@@ -389,9 +389,18 @@ async function openStudentModal(user, reload) {
     </div>
 
     <div class="grid-2">
-      <div class="field"><label>전화번호</label><input name="phone" type="tel" value="${v("phone")}"></div>
-      <div class="field"><label>이메일</label><input name="email" type="email" value="${v("email")}"></div>
+      <div class="field">
+        <label>학부모 연락처</label>
+        <input name="parent_phone" type="tel" inputmode="tel" value="${v("parent_phone")}" placeholder="010-0000-0000">
+        <div class="hint">학부모 알림이 이 번호로 갑니다.</div>
+      </div>
+      <div class="field">
+        <label>학생 연락처</label>
+        <input name="phone" type="tel" inputmode="tel" value="${v("phone")}" placeholder="없으면 비워 두세요">
+      </div>
     </div>
+
+    <div class="field"><label>이메일</label><input name="email" type="email" value="${v("email")}"></div>
 
     <div class="grid-2">
       <div class="field">
@@ -477,6 +486,7 @@ async function openStudentModal(user, reload) {
             grade: d.grade,
             class_no: d.class_no,
             phone: d.phone,
+            parent_phone: d.parent_phone,
             email: d.email,
             note: d.note,
             status: d.status,
@@ -700,7 +710,7 @@ function rosterGroup(g) {
     <div class="nt-students">
       ${g.students
         .map((s) => {
-          const tel = String(s.phone || "").replace(/[^0-9+]/g, "");
+          const tel = String(s.parent_phone || "").replace(/[^0-9+]/g, "");
           return `<label class="nt-student">
             <input type="checkbox" value="${s.id}">
             <span class="nt-info">
@@ -710,8 +720,8 @@ function rosterGroup(g) {
               </span>
               <span class="nt-row2">
                 <span class="sub">${esc([s.school, s.grade].filter(Boolean).join(" ")) || "-"}</span>
-                ${s.phone
-                  ? `<a class="phone" href="tel:${esc(tel)}" onclick="event.stopPropagation()">${esc(s.phone)}</a>`
+                ${s.parent_phone
+                  ? `<a class="phone" href="tel:${esc(tel)}" onclick="event.stopPropagation()">${esc(s.parent_phone)}</a>`
                   : `<span class="phone none">학부모 번호 없음</span>`}
               </span>
             </span>
@@ -1051,13 +1061,13 @@ async function openClassStudents(c) {
       return;
     }
     body.innerHTML = `<div class="table-scroll"><table class="data">
-      <thead><tr><th>이름</th><th>학교 / 학년 / 반</th><th>연락처</th><th>상태</th></tr></thead>
+      <thead><tr><th>이름</th><th>학교 / 학년 / 반</th><th>학부모 연락처</th><th>상태</th></tr></thead>
       <tbody>${students
         .map(
           (s) => `<tr>
             <td><b>${esc(s.name)}</b></td>
             <td>${esc([s.school, s.grade, s.class_no].filter(Boolean).join(" / ")) || "-"}</td>
-            <td>${esc(s.phone || "-")}</td>
+            <td>${esc(s.parent_phone || "-")}</td>
             <td><span class="badge ${STATUS_BADGE[s.status] || "gray"}">${esc(STATUS_KR[s.status] || s.status)}</span></td>
           </tr>`
         )

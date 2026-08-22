@@ -379,7 +379,7 @@ async function route(request, env, url) {
       if (method === "DELETE") return del(env, "alumni", c);
     }
 
-    // 원생 알림 — 클래스별로 묶은 원생 명단
+    // 학부모 알림 — 클래스별로 묶은 원생 명단 (그 학생의 학부모 번호로 보낸다)
     if (b === "roster" && !c && method === "GET") return adminRoster(env);
 
     // 원비 관리
@@ -1676,11 +1676,12 @@ async function adminUpdateInquiry(request, env, id) {
 }
 
 /* ============================================================
-   관리자 — 원생 알림 (클래스별 명단)
+   관리자 — 학부모 알림 (클래스별 명단)
    ============================================================ */
 
 /**
  * 알림 보낼 대상을 고르기 쉽도록 원생을 클래스별로 묶어서 준다.
+ * 실제로 알림이 가는 곳은 학생 본인이 아니라 그 학생의 학부모 번호(phone)다.
  * 어느 클래스에도 연결되지 않은 원생은 맨 끝에 따로 모아 둔다.
  */
 async function adminRoster(env) {

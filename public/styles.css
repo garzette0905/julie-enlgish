@@ -761,7 +761,7 @@ table.data td.actions .btn { margin-left: 5px; }
 .admin-toolbar .grow { flex: 1; min-width: 160px; }
 .admin-toolbar input, .admin-toolbar select { padding: 9px 12px; font-size: 14px; }
 
-/* ---------- 원생 알림 ---------- */
+/* ---------- 학부모 알림 ---------- */
 .nt-group { margin-bottom: 12px; overflow: hidden; }
 .nt-head { border-left: 4px solid var(--navy); background: var(--bg-soft); padding: 12px 16px; }
 .nt-head-check { display: flex; align-items: flex-start; gap: 10px; cursor: pointer; margin: 0; }
@@ -772,17 +772,26 @@ table.data td.actions .btn { margin-left: 5px; }
 }
 
 .nt-students {
-  display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
-  gap: 2px 10px; padding: 10px 16px 14px;
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 4px 10px; padding: 10px 16px 14px;
 }
 .nt-student {
-  display: flex; align-items: center; gap: 8px; padding: 7px 8px; border-radius: 8px;
+  display: flex; align-items: flex-start; gap: 8px; padding: 8px; border-radius: 8px;
   cursor: pointer; font-size: 14px; margin: 0;
 }
 .nt-student:hover { background: var(--bg-tint); }
-.nt-student input { width: auto; margin: 0; flex: none; }
+.nt-student input { width: auto; margin: 3px 0 0; flex: none; }
+.nt-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.nt-row1 { display: flex; align-items: center; gap: 6px; }
+.nt-row2 { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .nt-student .nm { font-weight: 600; color: var(--text); }
 .nt-student .sub { font-size: 12.5px; color: var(--text-faint); }
+.nt-student .phone {
+  font-size: 12.5px; font-weight: 700; color: var(--red);
+  white-space: nowrap;
+}
+.nt-student .phone:hover { text-decoration: underline; }
+.nt-student .phone.none { color: var(--text-faint); font-weight: 400; }
 
 .nt-compose { margin-top: 18px; }
 .nt-send { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }

@@ -13,7 +13,7 @@ import { clearCache, mediaSrc, youtubeId } from "./public-pages.js";
 const TABS = [
   { key: "inquiries", label: "상담 요청" },
   { key: "students", label: "학원생 관리" },
-  { key: "notify", label: "원생 알림" },
+  { key: "notify", label: "학부모 알림" },
   { key: "tuition", label: "원비관리" },
   { key: "classes", label: "클래스 관리" },
   { key: "media", label: "학원 소식" },
@@ -595,7 +595,7 @@ async function openCounselModal(user) {
 }
 
 /* ============================================================
-   원생 알림 — 클래스별로 원생을 골라 알림 내용을 적는다
+   학부모 알림 — 클래스별로 학생을 골라, 그 학부모에게 보낼 내용을 적는다
    (발송은 아직 준비 중이라 버튼을 눌러지지 않게 두었다)
    ============================================================ */
 
@@ -603,7 +603,7 @@ async function adminNotify(body) {
   body.innerHTML = `
     <div class="admin-toolbar">
       <div class="grow" style="font-size:14px;color:var(--text-muted)">
-        클래스별로 묶인 원생 명단입니다. 알림을 보낼 학생을 골라 주세요.
+        클래스별로 묶인 원생 명단입니다. 알림을 보낼 학생을 고르면, 그 학생의 학부모 번호로 보냅니다.
       </div>
       <span class="badge" id="nt-count">0명 선택</span>
     </div>
@@ -699,14 +699,24 @@ function rosterGroup(g) {
     </div>
     <div class="nt-students">
       ${g.students
-        .map(
-          (s) => `<label class="nt-student">
+        .map((s) => {
+          const tel = String(s.phone || "").replace(/[^0-9+]/g, "");
+          return `<label class="nt-student">
             <input type="checkbox" value="${s.id}">
-            <span class="nm">${esc(s.name)}</span>
-            <span class="sub">${esc([s.school, s.grade].filter(Boolean).join(" ")) || "-"}</span>
-            ${s.status !== "active" ? `<span class="badge ${STATUS_BADGE[s.status] || "gray"}">${esc(STATUS_KR[s.status] || s.status)}</span>` : ""}
-          </label>`
-        )
+            <span class="nt-info">
+              <span class="nt-row1">
+                <span class="nm">${esc(s.name)}</span>
+                ${s.status !== "active" ? `<span class="badge ${STATUS_BADGE[s.status] || "gray"}">${esc(STATUS_KR[s.status] || s.status)}</span>` : ""}
+              </span>
+              <span class="nt-row2">
+                <span class="sub">${esc([s.school, s.grade].filter(Boolean).join(" ")) || "-"}</span>
+                ${s.phone
+                  ? `<a class="phone" href="tel:${esc(tel)}" onclick="event.stopPropagation()">${esc(s.phone)}</a>`
+                  : `<span class="phone none">학부모 번호 없음</span>`}
+              </span>
+            </span>
+          </label>`;
+        })
         .join("")}
     </div>
   </div>`;

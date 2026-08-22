@@ -42,7 +42,7 @@
 
 | 화면 | 위치 | 버튼 |
 | --- | --- | --- |
-| 관리자 → 원생 알림 | `public/js/admin.js` 의 `adminNotify()` | `#nt-send` |
+| 관리자 → 학부모 알림 | `public/js/admin.js` 의 `adminNotify()` | `#nt-send` |
 | 관리자 → 원비관리 | `public/js/admin.js` 의 `adminTuitionScreen()` | `#tu-send` |
 
 대상 선택과 내용 작성까지는 동작하므로, 실제 발송만 이어 붙이면 된다.

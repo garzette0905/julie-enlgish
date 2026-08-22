@@ -3,6 +3,8 @@
 동백 Julie's English Academy(쥴리 잉글리쉬 영어교습소) 홈페이지입니다.
 Cloudflare Workers 위에서 돌아가고, 데이터는 D1(SQLite), 사진·동영상은 R2에 넣습니다.
 
+주소: <https://julie-enlgish.wepiclab.workers.dev>
+
 ## 화면
 
 | 메뉴 | 주소 | 설명 |

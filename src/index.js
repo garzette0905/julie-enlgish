@@ -73,6 +73,11 @@ async function route(request, env, url) {
     return myClasses(env, me);
   }
 
+  /* ---------- 상담신청 · 문의 접수 (로그인 없이) ---------- */
+  if (a === "inquiries" && !b && method === "POST") {
+    return createInquiry(request, env);
+  }
+
   /* ---------- 공개 데이터 ---------- */
   if (a === "public") {
     if (b === "settings" && method === "GET") return publicSettings(env);
@@ -150,6 +155,13 @@ async function route(request, env, url) {
     if (b === "alumni" && c) {
       if (method === "PATCH") return updateAlumni(request, env, c);
       if (method === "DELETE") return del(env, "alumni", c);
+    }
+
+    // 상담신청 · 문의
+    if (b === "inquiries" && !c && method === "GET") return adminListInquiries(env, url);
+    if (b === "inquiries" && c) {
+      if (method === "PATCH") return adminUpdateInquiry(request, env, c);
+      if (method === "DELETE") return del(env, "inquiries", c);
     }
 
     // 설정
@@ -1128,6 +1140,197 @@ async function updateAlumni(request, env, id) {
 }
 
 /* ============================================================
+   상담신청 · 문의
+   ============================================================ */
+
+const INQUIRY_KIND_KR = { consult: "상담신청", question: "문의" };
+const ENGLISH_LEVELS = ["없음", "1~2년", "3~4년", "5년 이상"];
+const INQUIRY_STATUS = new Set(["new", "doing", "done"]);
+
+/**
+ * 방문자가 남긴 상담신청/문의를 받는다.
+ * 순서가 중요하다 — 먼저 DB에 남기고, 그다음 알림을 보낸다.
+ * 알림이 실패해도 접수 자체는 살아 있어야 문의가 사라지지 않는다.
+ */
+async function createInquiry(request, env) {
+  const b = await readJson(request);
+
+  const kind = b.kind === "question" ? "question" : "consult";
+  const studentName = norm(b.student_name);
+  const parentPhone = norm(b.parent_phone);
+
+  if (!studentName) throw bad("학생 이름을 입력해 주세요.");
+  if (!parentPhone) throw bad("부모님 연락처를 입력해 주세요.");
+  if (studentName.length > 40) throw bad("학생 이름이 너무 깁니다.");
+  if (!/[0-9]/.test(parentPhone)) throw bad("부모님 연락처를 숫자로 입력해 주세요.");
+
+  const level = norm(b.english_level);
+  if (level && !ENGLISH_LEVELS.includes(level)) throw bad("영어 학습 수준을 다시 골라 주세요.");
+
+  const message = norm(b.message);
+  if (message && message.length > 2000) throw bad("내용이 너무 깁니다. 2000자 안으로 줄여 주세요.");
+
+  // 같은 번호로 1분 안에 또 들어오면 실수로 두 번 누른 것으로 본다.
+  const recent = await env.DB.prepare(
+    `SELECT id FROM inquiries
+      WHERE parent_phone = ?1 AND created_at > datetime('now', '-1 minute') LIMIT 1`
+  )
+    .bind(parentPhone)
+    .first();
+  if (recent) throw bad("방금 접수된 내용이 있습니다. 잠시 후 다시 시도해 주세요.");
+
+  const res = await env.DB.prepare(
+    `INSERT INTO inquiries
+       (kind, student_name, school, grade, english_level, student_phone, parent_phone, message, user_agent)
+     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)`
+  )
+    .bind(
+      kind,
+      studentName,
+      norm(b.school),
+      norm(b.grade),
+      level,
+      norm(b.student_phone),
+      parentPhone,
+      message,
+      (request.headers.get("user-agent") || "").slice(0, 200)
+    )
+    .run();
+
+  const id = res.meta.last_row_id;
+
+  const sent = await notifyNewInquiry(env, {
+    id,
+    kind,
+    student_name: studentName,
+    school: norm(b.school),
+    grade: norm(b.grade),
+    english_level: level,
+    student_phone: norm(b.student_phone),
+    parent_phone: parentPhone,
+    message,
+  });
+  if (sent) {
+    await env.DB.prepare(`UPDATE inquiries SET notified = 1 WHERE id = ?1`).bind(id).run();
+  }
+
+  // 알림이 갔는지 여부는 방문자에게 알릴 이유가 없다. 접수됐다는 사실만 알려 준다.
+  return json({
+    ok: true,
+    message:
+      kind === "consult"
+        ? "상담신청이 접수되었습니다. 확인 후 남겨주신 연락처로 연락드리겠습니다."
+        : "문의가 접수되었습니다. 확인 후 남겨주신 연락처로 답변드리겠습니다.",
+  });
+}
+
+const tgEsc = (v) =>
+  String(v === null || v === undefined ? "" : v)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+
+/** 새 접수를 원장님에게 바로 알린다. 실패해도 예외를 밖으로 던지지 않는다. */
+async function notifyNewInquiry(env, q) {
+  const token = env.TELEGRAM_BOT_TOKEN;
+  const chatId = env.TELEGRAM_CHAT_ID;
+  if (!token || !chatId) {
+    console.error("알림 설정이 없어 건너뜀 (TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID)");
+    return false;
+  }
+
+  const rows = [
+    ["학생 이름", q.student_name],
+    ["학교", q.school],
+    ["학년", q.grade],
+    ["영어 학습 수준", q.english_level],
+    ["학생 연락처", q.student_phone],
+    ["부모님 연락처", q.parent_phone],
+  ].filter(([, v]) => v);
+
+  const body =
+    `<b>[쥴리 잉글리쉬] 새 ${INQUIRY_KIND_KR[q.kind]}</b>\n\n` +
+    rows.map(([k, v]) => `${k}: <b>${tgEsc(v)}</b>`).join("\n") +
+    (q.message ? `\n\n${q.kind === "consult" ? "기타 의견" : "문의 내용"}:\n${tgEsc(q.message)}` : "") +
+    `\n\n접수번호 #${q.id}`;
+
+  try {
+    const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        chat_id: chatId,
+        text: body,
+        parse_mode: "HTML",
+        disable_web_page_preview: true,
+      }),
+    });
+    if (!res.ok) {
+      console.error("알림 전송 실패", res.status, (await res.text()).slice(0, 300));
+      return false;
+    }
+    return true;
+  } catch (e) {
+    console.error("알림 전송 중 오류", e);
+    return false;
+  }
+}
+
+async function adminListInquiries(env, url) {
+  const status = norm(url.searchParams.get("status"));
+  const kind = norm(url.searchParams.get("kind"));
+
+  let sql = `SELECT * FROM inquiries WHERE 1 = 1`;
+  const binds = [];
+  if (status && INQUIRY_STATUS.has(status)) {
+    binds.push(status);
+    sql += ` AND status = ?${binds.length}`;
+  }
+  if (kind && INQUIRY_KIND_KR[kind]) {
+    binds.push(kind);
+    sql += ` AND kind = ?${binds.length}`;
+  }
+  // 아직 처리 안 한 건이 항상 위로 오게 한다.
+  sql += ` ORDER BY CASE status WHEN 'new' THEN 0 WHEN 'doing' THEN 1 ELSE 2 END, created_at DESC`;
+
+  const { results } = await env.DB.prepare(sql).bind(...binds).all();
+  const counts = await env.DB.prepare(
+    `SELECT status, COUNT(*) AS n FROM inquiries GROUP BY status`
+  ).all();
+
+  const byStatus = {};
+  for (const r of counts.results || []) byStatus[r.status] = r.n;
+
+  return json({ inquiries: results || [], counts: byStatus });
+}
+
+async function adminUpdateInquiry(request, env, id) {
+  const b = await readJson(request);
+  const sets = [];
+  const vals = [];
+  let n = 1;
+
+  if (b.status !== undefined) {
+    if (!INQUIRY_STATUS.has(b.status)) throw bad("상태 값이 올바르지 않습니다.");
+    sets.push(`status = ?${n++}`);
+    vals.push(b.status);
+  }
+  if (b.admin_memo !== undefined) {
+    sets.push(`admin_memo = ?${n++}`);
+    vals.push(norm(b.admin_memo));
+  }
+  if (!sets.length) return json({ ok: true });
+
+  vals.push(id);
+  await env.DB.prepare(
+    `UPDATE inquiries SET ${sets.join(", ")}, updated_at = datetime('now') WHERE id = ?${n}`
+  )
+    .bind(...vals)
+    .run();
+  return json({ ok: true });
+}
+
+/* ============================================================
    관리자 — 설정
    ============================================================ */
 
@@ -1153,7 +1356,9 @@ async function saveSettings(request, env) {
 }
 
 /* ---------- 공통 삭제 ---------- */
-const DELETABLE = new Set(["counsel_logs", "classes", "enrollments", "schedule_events", "alumni"]);
+const DELETABLE = new Set([
+  "counsel_logs", "classes", "enrollments", "schedule_events", "alumni", "inquiries",
+]);
 
 async function del(env, table, id) {
   if (!DELETABLE.has(table)) throw bad("삭제할 수 없는 항목입니다.");

@@ -4,6 +4,7 @@
 import { $, $$, esc, refreshSession, onSessionChange, session, toast } from "./js/core.js";
 import { renderHome, renderTimetable, renderAlumni, renderAbout, fillFooter } from "./js/public-pages.js";
 import { renderLogin, renderMy, renderMe } from "./js/account.js";
+import { renderContact } from "./js/contact.js";
 import { renderAdmin } from "./js/admin.js";
 
 const view = $("#view");
@@ -77,12 +78,14 @@ async function render() {
     if (path === "/timetable") return await renderTimetable(view);
     if (path === "/alumni") return await renderAlumni(view);
     if (path === "/about") return await renderAbout(view);
+    if (path === "/contact") return renderContact(view);
+    if (path === "/contact/question") return renderContact(view, { kind: "question" });
     if (path === "/login") return renderLogin(view);
     if (path === "/signup") return renderLogin(view, { mode: "signup" });
     if (path === "/my") return await renderMy(view);
     if (path === "/me") return await renderMe(view);
     if (path.startsWith("/admin")) {
-      const tab = path.split("/")[2] || "students";
+      const tab = path.split("/")[2] || "inquiries";
       return await renderAdmin(view, tab);
     }
 

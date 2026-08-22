@@ -207,7 +207,7 @@ export async function renderHome(view) {
         <div class="section-head">
           <span class="eyebrow">Contact</span>
           <h2>상담 문의</h2>
-          <p>수업 상담은 전화 또는 카카오 채널로 편하게 문의해 주세요.</p>
+          <p>전화로 바로 문의하시거나, 편한 시간에 온라인으로 상담신청을 남겨 주세요.</p>
         </div>
         <div class="contact-grid" id="home-contact"></div>
       </div>
@@ -248,26 +248,26 @@ async function loadAlumniInto(root) {
 function renderContactGrid(root, s) {
   if (!root) return;
   const items = [
-    ["Office", s.phone, `tel:${(s.phone || "").replace(/-/g, "")}`, false],
-    ["Mobile", s.mobile, `tel:${(s.mobile || "").replace(/-/g, "")}`, false],
-    ["E-mail", s.email, `mailto:${s.email || ""}`, false],
-    ["카카오 채널", s.kakao, s.kakao_url || null, true],
-    ["위치", s.address, null, false],
+    ["Office", s.phone, `tel:${(s.phone || "").replace(/-/g, "")}`],
+    ["Mobile", s.mobile, `tel:${(s.mobile || "").replace(/-/g, "")}`],
+    ["E-mail", s.email, `mailto:${s.email || ""}`],
+    ["위치", s.address, null],
   ].filter(([, v]) => v);
 
-  root.innerHTML = items
-    .map(([k, v, href, kakao]) => {
-      const icon = kakao ? `<img class="kakao-icon" src="/assets/kakao-channel.png" alt="">` : "";
-      // 카카오는 채널 주소가 외부 링크라 새 탭으로 연다.
-      const inner = href
-        ? `<a href="${esc(href)}"${kakao ? ` target="_blank" rel="noopener noreferrer"` : ""}>${icon}${esc(v)}</a>`
-        : `${icon}${esc(v)}`;
-      return `<div class="contact-item">
-        <div class="k">${esc(k)}</div>
-        <div class="v">${inner}</div>
-      </div>`;
-    })
-    .join("");
+  root.innerHTML =
+    items
+      .map(
+        ([k, v, href]) => `<div class="contact-item">
+          <div class="k">${esc(k)}</div>
+          <div class="v">${href ? `<a href="${esc(href)}">${esc(v)}</a>` : esc(v)}</div>
+        </div>`
+      )
+      .join("") +
+    // 전화가 어려운 시간에도 남길 수 있도록, 연락처 옆에 신청 창구를 같이 둔다.
+    `<a class="contact-item cta" href="#/contact">
+      <div class="k">상담신청 · 문의</div>
+      <div class="v">온라인으로 남기기 &rarr;</div>
+    </a>`;
 }
 
 /* 푸터 연락처 */
@@ -282,14 +282,9 @@ export async function fillFooter() {
     ["위치", s.address],
   ].filter(([, v]) => v);
 
-  let out = rows.map(([k, v]) => `<div><span>${esc(k)}</span> ${esc(v)}</div>`).join("");
-  if (s.kakao && s.kakao_url) {
-    out += `<div><span>카카오</span>
-      <a class="kakao-link" href="${esc(s.kakao_url)}" target="_blank" rel="noopener noreferrer">
-        <img class="kakao-icon" src="/assets/kakao-channel.png" alt="">${esc(s.kakao)}
-      </a></div>`;
-  }
-  el.innerHTML = out;
+  el.innerHTML =
+    rows.map(([k, v]) => `<div><span>${esc(k)}</span> ${esc(v)}</div>`).join("") +
+    `<div><span>상담</span> <a class="footer-cta" href="#/contact">상담신청 · 문의 &rarr;</a></div>`;
 }
 
 /* ============================================================

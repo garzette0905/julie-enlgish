@@ -11,6 +11,7 @@ import {
 import { clearCache, mediaSrc, youtubeId } from "./public-pages.js";
 
 const TABS = [
+  { key: "inquiries", label: "상담 요청" },
   { key: "students", label: "학원생 관리" },
   { key: "classes", label: "클래스 관리" },
   { key: "timetable", label: "시간표 관리" },
@@ -19,7 +20,7 @@ const TABS = [
   { key: "settings", label: "사이트 설정" },
 ];
 
-export async function renderAdmin(view, tab = "students") {
+export async function renderAdmin(view, tab = "inquiries") {
   // 쿠키 만료로 화면 상태만 남아 있을 수 있으니 들어올 때마다 서버에 확인한다.
   await refreshSession();
   if (!session.isAdmin) {
@@ -29,7 +30,7 @@ export async function renderAdmin(view, tab = "students") {
     return;
   }
 
-  if (!TABS.some((t) => t.key === tab)) tab = "students";
+  if (!TABS.some((t) => t.key === tab)) tab = "inquiries";
 
   view.innerHTML = "";
   view.append(html(`
@@ -49,6 +50,7 @@ export async function renderAdmin(view, tab = "students") {
 
   const body = $("#admin-body", view);
   const renderers = {
+    inquiries: adminInquiries,
     students: adminStudents,
     classes: adminClasses,
     timetable: adminTimetable,
@@ -57,6 +59,174 @@ export async function renderAdmin(view, tab = "students") {
     settings: adminSettings,
   };
   await renderers[tab](body);
+}
+
+/* ============================================================
+   상담 요청 — 홈페이지에서 들어온 상담신청 / 문의
+   ============================================================ */
+
+const INQ_KIND_KR = { consult: "상담신청", question: "문의" };
+const INQ_STATUS_KR = { new: "신규", doing: "연락중", done: "완료" };
+const INQ_STATUS_BADGE = { new: "red", doing: "amber", done: "green" };
+
+async function adminInquiries(body) {
+  body.innerHTML = `
+    <div class="admin-toolbar">
+      <div class="grow" id="inq-counts" style="font-size:14px;color:var(--text-muted)"></div>
+      <select id="inq-kind" style="max-width:140px">
+        <option value="">전체 종류</option>
+        <option value="consult">상담신청</option>
+        <option value="question">문의</option>
+      </select>
+      <select id="inq-status" style="max-width:140px">
+        <option value="">전체 상태</option>
+        <option value="new">신규</option>
+        <option value="doing">연락중</option>
+        <option value="done">완료</option>
+      </select>
+    </div>
+    <div id="inq-list"><div class="loading">불러오는 중…</div></div>`;
+
+  const list = $("#inq-list", body);
+  const kindEl = $("#inq-kind", body);
+  const statusEl = $("#inq-status", body);
+
+  const load = async () => {
+    list.innerHTML = `<div class="loading">불러오는 중…</div>`;
+    const params = new URLSearchParams();
+    if (kindEl.value) params.set("kind", kindEl.value);
+    if (statusEl.value) params.set("status", statusEl.value);
+
+    try {
+      const { inquiries, counts } = await apiGet(`admin/inquiries?${params}`);
+      $("#inq-counts", body).innerHTML =
+        `신규 <b style="color:var(--red)">${counts.new || 0}</b>건 · ` +
+        `연락중 ${counts.doing || 0}건 · 완료 ${counts.done || 0}건`;
+
+      if (!inquiries.length) {
+        list.innerHTML = `<div class="empty">해당하는 상담 요청이 없습니다.</div>`;
+        return;
+      }
+      list.innerHTML = inquiries.map(inquiryCard).join("");
+      bindInquiryCards(list, inquiries, load);
+    } catch (e) {
+      list.innerHTML = `<div class="empty">${esc(e.message)}</div>`;
+    }
+  };
+
+  kindEl.addEventListener("change", load);
+  statusEl.addEventListener("change", load);
+  await load();
+}
+
+function inquiryCard(q) {
+  // 상담신청과 문의는 받는 항목이 달라서, 값이 있는 것만 줄로 만든다.
+  const rows = [
+    ["학교", q.school],
+    ["학년", q.grade],
+    ["영어 학습 수준", q.english_level],
+    ["학생 연락처", q.student_phone],
+  ].filter(([, v]) => v);
+
+  const tel = String(q.parent_phone || "").replace(/[^0-9+]/g, "");
+
+  return `<div class="inq-card${q.status === "new" ? " is-new" : ""}" data-id="${q.id}">
+    <div class="inq-top">
+      <div>
+        <span class="badge ${q.kind === "consult" ? "red" : ""}">${esc(INQ_KIND_KR[q.kind] || q.kind)}</span>
+        <span class="badge ${INQ_STATUS_BADGE[q.status] || "gray"}">${esc(INQ_STATUS_KR[q.status] || q.status)}</span>
+        <span class="inq-when">${esc(q.created_at)}</span>
+      </div>
+      <div class="inq-no">#${q.id}</div>
+    </div>
+
+    <div class="inq-name">${esc(q.student_name)}</div>
+    <div class="inq-phone">
+      부모님 <a href="tel:${esc(tel)}">${esc(q.parent_phone)}</a>
+    </div>
+
+    ${rows.length ? `<div class="inq-rows">${rows
+      .map(([k, v]) => `<span><i>${esc(k)}</i> ${esc(v)}</span>`)
+      .join("")}</div>` : ""}
+
+    ${q.message ? `<div class="inq-msg">${esc(q.message)}</div>` : ""}
+    ${q.admin_memo ? `<div class="inq-memo"><b>메모</b> ${esc(q.admin_memo)}</div>` : ""}
+    ${q.notified ? "" : `<div class="inq-warn">알림 전송에 실패한 건입니다. 내용은 정상 접수되었습니다.</div>`}
+
+    <div class="inq-actions">
+      ${q.status !== "doing" ? `<button class="btn sm ghost" data-act="doing">연락중</button>` : ""}
+      ${q.status !== "done" ? `<button class="btn sm ghost" data-act="done">완료</button>` : ""}
+      ${q.status !== "new" ? `<button class="btn sm ghost" data-act="new">신규로</button>` : ""}
+      <button class="btn sm ghost" data-act="memo">메모</button>
+      <button class="btn sm danger" data-act="del">삭제</button>
+    </div>
+  </div>`;
+}
+
+function bindInquiryCards(root, inquiries, reload) {
+  for (const card of $$(".inq-card[data-id]", root)) {
+    const q = inquiries.find((x) => String(x.id) === card.dataset.id);
+    for (const btn of $$("[data-act]", card)) {
+      btn.addEventListener("click", async () => {
+        const act = btn.dataset.act;
+
+        if (act === "del") {
+          if (!(await confirmBox(`${q.student_name} 학생의 ${INQ_KIND_KR[q.kind]}을(를) 삭제할까요?`))) return;
+          try {
+            await apiDelete(`admin/inquiries/${q.id}`);
+            toast("삭제했습니다.");
+            reload();
+          } catch (e) {
+            toast(e.message, true);
+          }
+          return;
+        }
+
+        if (act === "memo") return openInquiryMemo(q, reload);
+
+        try {
+          await apiPatch(`admin/inquiries/${q.id}`, { status: act });
+          toast(`${INQ_STATUS_KR[act]}(으)로 바꿨습니다.`);
+          reload();
+        } catch (e) {
+          toast(e.message, true);
+        }
+      });
+    }
+  }
+}
+
+function openInquiryMemo(q, reload) {
+  const form = html(`<form novalidate>
+    <div class="field">
+      <label>처리 메모</label>
+      <textarea name="admin_memo" placeholder="통화 결과, 상담 일정 등">${esc(q.admin_memo || "")}</textarea>
+    </div>
+  </form>`);
+
+  const modal = openModal({
+    title: `${q.student_name} · ${INQ_KIND_KR[q.kind]} 메모`,
+    body: form,
+    footer: modalFooter([
+      { label: "취소", cls: "ghost", onClick: () => modal.close() },
+      {
+        label: "저장",
+        cls: "red",
+        onClick: async (btn) => {
+          btn.disabled = true;
+          try {
+            await apiPatch(`admin/inquiries/${q.id}`, { admin_memo: readForm(form).admin_memo });
+            toast("저장했습니다.");
+            modal.close();
+            reload();
+          } catch (e) {
+            toast(e.message, true);
+            btn.disabled = false;
+          }
+        },
+      },
+    ]),
+  });
 }
 
 /* ============================================================
@@ -1157,8 +1327,7 @@ const SETTING_FIELDS = [
   ["mobile", "휴대폰", "010-3323-9439"],
   ["email", "이메일", "garzetta@hanmail.net"],
   ["address", "위치", "초당마을 삼부르네상스아파트 상가동 204호"],
-  ["kakao", "카카오 채널 이름", "Julie English"],
-  ["kakao_url", "카카오 채널 주소", "https://pf.kakao.com/_xgxgvaj"],
+  // 카카오 채널 자리는 "상담신청 · 문의" 화면이 대신한다.
 ];
 
 const isUrl = (v) => /^https?:\/\/\S+$/i.test(String(v || "").trim());

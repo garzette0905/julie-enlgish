@@ -497,13 +497,17 @@ table.data td.actions .btn { margin-left: 5px; }
 .contact-item .v a { display: inline-flex; align-items: center; gap: 7px; }
 .contact-item .v a:hover { color: var(--red); text-decoration: underline; }
 
-/* 카카오 채널 아이콘 */
-.kakao-icon {
-  width: 22px; height: 22px; flex: none; border-radius: 6px; display: inline-block;
+/* 연락처 줄 끝에 붙는 상담신청 카드 */
+.contact-item.cta {
+  display: block; background: var(--navy); border-color: var(--navy);
+  transition: background 0.16s ease, transform 0.16s ease;
 }
-.footer-contact .kakao-link { display: inline-flex; align-items: center; gap: 7px; vertical-align: middle; }
-.footer-contact .kakao-link:hover { color: #fff; text-decoration: underline; }
-.footer-contact .kakao-icon { width: 19px; height: 19px; border-radius: 5px; }
+.contact-item.cta:hover { background: var(--red); border-color: var(--red); transform: translateY(-2px); }
+.contact-item.cta .k { color: rgba(255, 255, 255, 0.75); }
+.contact-item.cta .v { color: #fff; }
+
+.footer-contact .footer-cta { color: #fff; font-weight: 600; }
+.footer-contact .footer-cta:hover { text-decoration: underline; }
 
 /* ============================================================
    시간표 (달력)
@@ -672,6 +676,84 @@ table.data td.actions .btn { margin-left: 5px; }
   position: absolute; top: 16px; right: 18px; width: 42px; height: 42px;
   border-radius: 50%; border: 0; background: rgba(255, 255, 255, 0.16); color: #fff;
   font-size: 22px; cursor: pointer; line-height: 1;
+}
+
+/* ============================================================
+   상담신청 · 문의
+   ============================================================ */
+
+/* 상담신청 / 문의 전환 */
+.seg {
+  display: flex; gap: 4px; padding: 4px; margin-bottom: 22px;
+  background: var(--bg-soft); border: 1px solid var(--border); border-radius: 12px;
+}
+.seg-btn {
+  flex: 1; padding: 10px 12px; border: 0; border-radius: 9px; cursor: pointer;
+  background: transparent; color: var(--text-muted);
+  font-family: var(--font); font-size: 14.5px; font-weight: 600; line-height: 1.2;
+  transition: background 0.16s ease, color 0.16s ease;
+}
+.seg-btn:hover { color: var(--navy); }
+.seg-btn.on { background: var(--navy); color: #fff; box-shadow: var(--shadow-sm); }
+
+.contact-form .form-lead {
+  margin: 0 0 20px; font-size: 14.5px; color: var(--text-muted);
+}
+.contact-form .req { color: var(--red); }
+
+/* 보내고 난 뒤 화면 */
+.sent-box { text-align: center; padding: 18px 4px 6px; }
+.sent-box .sent-mark {
+  width: 58px; height: 58px; margin: 0 auto 16px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 50%; background: #e6f5ec; color: #1f7a4b; font-size: 30px; font-weight: 700;
+}
+.sent-box h2 { font-size: 20px; color: var(--navy); margin-bottom: 10px; }
+.sent-box p { margin: 0 0 22px; font-size: 14.5px; color: var(--text-muted); line-height: 1.75; }
+
+/* ============================================================
+   관리자 — 상담 요청 카드
+   ============================================================ */
+.inq-card {
+  background: #fff; border: 1px solid var(--border); border-radius: var(--radius);
+  box-shadow: var(--shadow-sm); padding: 18px 20px; margin-bottom: 12px;
+}
+/* 아직 처리 안 한 건은 왼쪽에 빨간 띠를 둬서 목록에서 바로 눈에 띄게 한다 */
+.inq-card.is-new { border-left: 4px solid var(--red); }
+
+.inq-top {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  margin-bottom: 10px; flex-wrap: wrap;
+}
+.inq-top .badge { margin-right: 5px; }
+.inq-when { font-size: 12.5px; color: var(--text-faint); font-variant-numeric: tabular-nums; }
+.inq-no { font-size: 12.5px; color: var(--text-faint); font-weight: 600; }
+
+.inq-name { font-size: 19px; font-weight: 700; color: var(--navy); letter-spacing: -0.02em; }
+.inq-phone { font-size: 15px; margin-top: 3px; color: var(--text-muted); }
+.inq-phone a { color: var(--red); font-weight: 700; }
+.inq-phone a:hover { text-decoration: underline; }
+
+.inq-rows { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 10px; }
+.inq-rows span { font-size: 13.5px; color: var(--text); }
+.inq-rows i { font-style: normal; color: var(--text-faint); margin-right: 4px; }
+
+.inq-msg {
+  margin-top: 12px; padding: 12px 14px; border-radius: 10px;
+  background: var(--bg-soft); font-size: 14px; color: var(--text); white-space: pre-wrap;
+}
+.inq-memo {
+  margin-top: 10px; padding: 10px 14px; border-radius: 10px;
+  background: #fff8e6; font-size: 13.5px; color: #6a4b00; white-space: pre-wrap;
+}
+.inq-memo b { margin-right: 6px; }
+.inq-warn { margin-top: 10px; font-size: 12.5px; color: var(--red); }
+
+.inq-actions { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 14px; }
+
+@media (max-width: 520px) {
+  .inq-card { padding: 15px 16px; }
+  .inq-actions .btn { flex: 1 1 auto; }
 }
 
 /* ============================================================

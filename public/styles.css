@@ -577,8 +577,25 @@ table.data td.actions .btn { margin-left: 5px; }
 }
 .rv-view-meta span { margin-left: auto; font-size: 12.5px; color: var(--text-faint); font-variant-numeric: tabular-nums; }
 .rv-view-title { font-size: 17px; color: var(--text); margin: 0 0 8px; }
-.rv-view .rv-photo { cursor: default; display: block; }
-.rv-view .rv-photo:hover { transform: none; border-color: var(--border); }
+.rv-view-hint { margin: 18px 0 8px; font-size: 12.5px; color: var(--text-faint); }
+
+/* 손편지 사진은 잘라내지 않고 전체가 보이게 담는다.
+   글씨가 작아 창 안에서 다 읽히지 않으므로, 눌러서 화면 전체로 키울 수 있다. */
+.rv-view-photos { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; }
+.rv-view-photo {
+  padding: 6px; border: 1px solid var(--border); border-radius: 10px;
+  background: var(--bg-soft); cursor: zoom-in; display: block;
+  transition: border-color 0.16s ease, transform 0.16s ease;
+}
+.rv-view-photo:hover { border-color: var(--navy); transform: translateY(-2px); }
+.rv-view-photo img {
+  display: block; margin: 0 auto; max-width: 100%; max-height: 62vh;
+  object-fit: contain; border-radius: 6px;
+}
+/* 사진이 한 장뿐이면 창 너비를 다 쓴다 (편지가 가장 크게 보인다). */
+.rv-view-photos > .rv-view-photo:only-child { grid-column: 1 / -1; }
+
+/* 사진 크게 보기 창은 후기 창(150) 위에 올라와야 한다 — .lightbox 가 200 이라 그대로 겹친다. */
 
 @media (max-width: 520px) {
   .rv-mini { padding: 18px 16px; }
@@ -685,6 +702,20 @@ table.data td.actions .btn { margin-left: 5px; }
   display: flex; align-items: center; justify-content: center; padding: 22px;
 }
 .lightbox img, .lightbox video { max-width: 100%; max-height: 88vh; object-fit: contain; border-radius: 10px; }
+.lightbox img { cursor: zoom-in; }
+
+/* 눌러서 키운 상태 — 폭을 꽉 채우고, 넘치는 아래쪽은 스크롤로 읽는다. */
+.lightbox.zoom { display: block; padding: 0; overflow: auto; -webkit-overflow-scrolling: touch; }
+.lightbox.zoom img {
+  width: 100%; max-width: none; max-height: none; height: auto;
+  border-radius: 0; cursor: zoom-out;
+}
+/* 키운 채로 아래까지 내려가도 닫기 단추는 제자리에 남아 있어야 한다. */
+.lightbox.zoom .close { position: fixed; }
+.lb-hint {
+  position: fixed; left: 0; right: 0; bottom: 14px; text-align: center;
+  font-size: 12.5px; color: rgba(255, 255, 255, 0.72); pointer-events: none;
+}
 .lightbox .close {
   position: absolute; top: 16px; right: 18px; width: 42px; height: 42px;
   border-radius: 50%; border: 0; background: rgba(255, 255, 255, 0.16); color: #fff;

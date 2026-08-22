@@ -193,7 +193,8 @@ export async function renderHome(view) {
         <div class="alumni-grid" id="home-alumni"><div class="loading">불러오는 중…</div></div>
 
         <h3 class="sub-head" id="home-reviews">졸업생 · 학부모 후기</h3>
-        <p class="sub-lead">쥴리 잉글리쉬와 함께한 학생·학부모님이 남겨 주신 이야기입니다.</p>
+        <p class="sub-lead">쥴리 잉글리쉬와 함께한 학생·학부모님이 남겨 주신 이야기입니다.<br>
+          저희 원에서 졸업생은 정규선행 프로그램을 6~8년 이상 모두 마친 학생들을 의미합니다.</p>
         <div class="rv-mini-grid" id="home-reviews-grid"><div class="loading">불러오는 중…</div></div>
         <div class="sub-more"><a class="btn ghost sm" href="/reviews">후기 전체 보기 · 후기 쓰기 &rarr;</a></div>
       </div>
@@ -289,14 +290,26 @@ function openReviewView(r) {
       <span>${esc(kstDate(r.created_at))}</span>
     </div>
     ${r.title ? `<h4 class="rv-view-title">${esc(r.title)}</h4>` : ""}
-    <div class="rv-body">${esc(r.body)}</div>
+    ${r.body ? `<div class="rv-body">${esc(r.body)}</div>` : ""}
     ${photos.length
-      ? `<div class="rv-photos">${photos
-          .map((p) => `<span class="rv-photo"><img src="${esc(reviewPhotoUrl(p.r2_key))}" alt="" loading="lazy"></span>`)
-          .join("")}</div>`
+      ? `<div class="rv-view-hint">사진을 누르면 크게 볼 수 있습니다.</div>
+         <div class="rv-view-photos">${photos
+           .map(
+             (p) => `<button type="button" class="rv-view-photo" data-src="${esc(reviewPhotoUrl(p.r2_key))}">
+               <img src="${esc(reviewPhotoUrl(p.r2_key))}" alt="후기 사진" loading="lazy">
+             </button>`
+           )
+           .join("")}</div>`
       : ""}
   </div>`);
-  openModal({ title: "졸업생 · 학부모 후기", body });
+
+  // 손편지처럼 글씨가 작은 사진은 창 안에서 다 읽히지 않는다.
+  // 눌러서 화면 전체로 키워 볼 수 있게 한다.
+  for (const b of $$(".rv-view-photo[data-src]", body)) {
+    b.addEventListener("click", () => openLightbox(b.dataset.src, "photo"));
+  }
+
+  openModal({ title: "졸업생 · 학부모 후기", body, wide: true });
 }
 
 async function loadHomeReviewsInto(root) {
@@ -451,20 +464,36 @@ function mediaCardHtml(m) {
 }
 
 function openLightbox(src, kind) {
-  const inner =
-    kind === "video"
-      ? `<video src="${esc(src)}" controls autoplay playsinline></video>`
-      : `<img src="${esc(src)}" alt="">`;
+  const isVideo = kind === "video";
+  const inner = isVideo
+    ? `<video src="${esc(src)}" controls autoplay playsinline></video>`
+    : `<img src="${esc(src)}" alt="">
+       <div class="lb-hint">사진을 누르면 더 크게 · 다시 누르면 원래대로</div>`;
   const box = html(`<div class="lightbox"><button class="close" type="button" aria-label="닫기">&times;</button>${inner}</div>`);
+
+  // 손편지처럼 세로로 긴 사진은 화면에 맞추면 글씨가 작아 읽기 어렵다.
+  // 사진을 누르면 폭을 꽉 채워 키우고, 넘치는 부분은 스크롤로 본다.
+  if (!isVideo) {
+    $("img", box).addEventListener("click", () => {
+      box.classList.toggle("zoom");
+      box.scrollTop = 0;
+    });
+  }
   const close = () => {
     box.remove();
-    document.removeEventListener("keydown", onKey);
+    document.removeEventListener("keydown", onKey, true);
   };
-  const onKey = (e) => e.key === "Escape" && close();
+  // 후기 창 위에 겹쳐 뜰 수 있어서, ESC 는 위에 있는 이 사진 창만 닫는다.
+  // (내려가는 단계에서 먼저 가로채 아래쪽 창의 ESC 처리를 막는다)
+  const onKey = (e) => {
+    if (e.key !== "Escape") return;
+    e.stopImmediatePropagation();
+    close();
+  };
   box.addEventListener("click", (e) => {
     if (e.target === box) close();
   });
   $(".close", box).addEventListener("click", close);
-  document.addEventListener("keydown", onKey);
+  document.addEventListener("keydown", onKey, true);
   document.body.append(box);
 }

@@ -534,6 +534,58 @@ table.data td.actions .btn { margin-left: 5px; }
 .alumni-card .note { font-size: 13px; color: var(--text-faint); margin-top: 7px; }
 
 /* ============================================================
+   홈에 얹는 후기 카드 (조회 전용)
+   ============================================================ */
+.rv-mini-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 15px; }
+.rv-mini {
+  display: flex; flex-direction: column; text-align: left; gap: 8px;
+  background: #fff; border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 20px; box-shadow: var(--shadow-sm); cursor: pointer;
+  font-family: var(--font); color: inherit;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+}
+.rv-mini:hover { transform: translateY(-3px); box-shadow: var(--shadow-md); border-color: var(--navy); }
+.rv-mini .thumb {
+  display: block; height: 148px; margin: -20px -20px 4px; overflow: hidden;
+  border-radius: var(--radius) var(--radius) 0 0; background: var(--bg-soft);
+}
+.rv-mini .thumb img { width: 100%; height: 100%; object-fit: cover; }
+.rv-mini .head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.rv-mini .who { font-size: 14.5px; font-weight: 700; color: var(--navy); }
+.rv-mini .date { font-size: 12.5px; color: var(--text-faint); font-variant-numeric: tabular-nums; }
+.rv-mini .ttl {
+  font-size: 16px; font-weight: 700; color: var(--text); letter-spacing: -0.02em;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+/* 본문은 넉 줄까지만 보이고, 나머지는 카드를 눌러 창에서 읽는다. */
+.rv-mini .txt {
+  font-size: 14.5px; line-height: 1.75; color: var(--text-muted); white-space: pre-wrap;
+  display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden;
+}
+.rv-mini .more { margin-top: auto; padding-top: 4px; font-size: 13px; font-weight: 600; color: var(--red); }
+
+/* 카드 줄 아래 "후기 전체 보기" */
+.sub-more { margin-top: 18px; }
+
+/* 첫 화면 버튼으로 내려올 때 제목이 상단 바에 가리지 않게 여유를 둔다. */
+#home-reviews { scroll-margin-top: 84px; }
+
+/* 카드를 눌렀을 때 뜨는 읽기 전용 창 */
+.rv-view-meta {
+  display: flex; align-items: center; gap: 8px; font-size: 14.5px; color: var(--navy);
+  padding-bottom: 12px; margin-bottom: 12px; border-bottom: 1px solid var(--bg-soft);
+}
+.rv-view-meta span { margin-left: auto; font-size: 12.5px; color: var(--text-faint); font-variant-numeric: tabular-nums; }
+.rv-view-title { font-size: 17px; color: var(--text); margin: 0 0 8px; }
+.rv-view .rv-photo { cursor: default; display: block; }
+.rv-view .rv-photo:hover { transform: none; border-color: var(--border); }
+
+@media (max-width: 520px) {
+  .rv-mini { padding: 18px 16px; }
+  .rv-mini .thumb { height: 160px; margin: -18px -16px 4px; }
+}
+
+/* ============================================================
    수업 한 줄 (나의 수업)
    ============================================================ */
 .slot {

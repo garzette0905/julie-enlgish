@@ -4,7 +4,7 @@
  *   (시간표·졸업생 소개 화면은 걷어냈고, 졸업생 명단은 홈 Result 섹션에 남아 있다)
  */
 import {
-  $, $$, html, esc, apiGet,
+  $, $$, html, esc, apiGet, kstDate, openModal,
 } from "./core.js";
 
 /* 여러 화면이 같이 쓰는 값들은 한 번만 받아서 들고 있는다. */
@@ -63,7 +63,7 @@ export async function renderHome(view) {
           </p>
           <div class="hero-actions">
             <a class="btn" href="/contact">상담신청 하기</a>
-            <a class="btn outline" href="/reviews">후기 보기</a>
+            <a class="btn outline" href="#home-reviews" id="hero-reviews">졸업생 · 학부모 후기</a>
           </div>
         </div>
         <div class="hero-logo"><img src="/assets/logo-512.png" alt="쥴리 잉글리쉬 로고"></div>
@@ -191,6 +191,11 @@ export async function renderHome(view) {
         <h3 class="sub-head">졸업생 소개</h3>
         <p class="sub-lead">최소 5년에서 최대 9년까지 꾸준히 함께한 학생들이 만들어낸 결과입니다.</p>
         <div class="alumni-grid" id="home-alumni"><div class="loading">불러오는 중…</div></div>
+
+        <h3 class="sub-head" id="home-reviews">졸업생 · 학부모 후기</h3>
+        <p class="sub-lead">쥴리 잉글리쉬와 함께한 학생·학부모님이 남겨 주신 이야기입니다.</p>
+        <div class="rv-mini-grid" id="home-reviews-grid"><div class="loading">불러오는 중…</div></div>
+        <div class="sub-more"><a class="btn ghost sm" href="/reviews">후기 전체 보기 · 후기 쓰기 &rarr;</a></div>
       </div>
     </section>
 
@@ -212,6 +217,20 @@ export async function renderHome(view) {
 
   // 졸업생 명단은 이 Result 섹션에만 남아 있다(별도 메뉴는 후기로 바뀌었다).
   loadAlumniInto($("#home-alumni", view));
+
+  // 후기는 홈에서 읽기만 한다. 쓰기·수정·삭제는 /reviews 화면 몫이다.
+  loadHomeReviewsInto($("#home-reviews-grid", view));
+
+  // 첫 화면의 "졸업생 · 학부모 후기" 버튼은 페이지를 옮기지 않고 아래 카드로 내려간다.
+  const heroBtn = $("#hero-reviews", view);
+  if (heroBtn) {
+    heroBtn.addEventListener("click", (e) => {
+      const target = $("#home-reviews", view);
+      if (!target) return; // 못 찾으면 브라우저 기본 동작(#이동)에 맡긴다
+      e.preventDefault();
+      target.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  }
 }
 
 /* 졸업생 카드 — 홈 Result 섹션에서 쓴다. */
@@ -233,6 +252,67 @@ async function loadAlumniInto(root) {
       alumni && alumni.length
         ? alumni.map(alumniCardHtml).join("")
         : `<div class="empty">아직 등록된 졸업생이 없습니다.</div>`;
+  } catch (e) {
+    root.innerHTML = `<div class="empty">${esc(e.message)}</div>`;
+  }
+}
+
+/* ============================================================
+   홈에 얹는 후기 카드 (조회 전용)
+   글을 쓰거나 고치는 일은 /reviews 화면에서만 한다. 여기서는 최근 것만 보여준다.
+   ============================================================ */
+
+const HOME_REVIEW_COUNT = 6;
+
+const reviewPhotoUrl = (key) => `/api/media/file/${key.split("/").map(encodeURIComponent).join("/")}`;
+
+function reviewMiniCardHtml(r) {
+  const cover = (r.photos || [])[0];
+  return `<button type="button" class="rv-mini" data-id="${r.id}">
+    ${cover ? `<span class="thumb"><img src="${esc(reviewPhotoUrl(cover.r2_key))}" alt="" loading="lazy"></span>` : ""}
+    <span class="head">
+      <span class="who">${esc(r.author_name)}${r.author_role === "admin" ? ` <span class="badge red">원장</span>` : ""}</span>
+      <span class="date">${esc(kstDate(r.created_at))}</span>
+    </span>
+    ${r.title ? `<span class="ttl">${esc(r.title)}</span>` : ""}
+    <span class="txt">${esc(r.body)}</span>
+    <span class="more">자세히 보기 &rarr;</span>
+  </button>`;
+}
+
+/** 카드를 누르면 글 전체와 사진을 창으로 띄운다 (읽기만 된다). */
+function openReviewView(r) {
+  const photos = r.photos || [];
+  const body = html(`<div class="rv-view">
+    <div class="rv-view-meta">
+      <b>${esc(r.author_name)}</b>${r.author_role === "admin" ? ` <span class="badge red">원장</span>` : ""}
+      <span>${esc(kstDate(r.created_at))}</span>
+    </div>
+    ${r.title ? `<h4 class="rv-view-title">${esc(r.title)}</h4>` : ""}
+    <div class="rv-body">${esc(r.body)}</div>
+    ${photos.length
+      ? `<div class="rv-photos">${photos
+          .map((p) => `<span class="rv-photo"><img src="${esc(reviewPhotoUrl(p.r2_key))}" alt="" loading="lazy"></span>`)
+          .join("")}</div>`
+      : ""}
+  </div>`);
+  openModal({ title: "졸업생 · 학부모 후기", body });
+}
+
+async function loadHomeReviewsInto(root) {
+  if (!root) return;
+  try {
+    const { reviews } = await apiGet("reviews");
+    const list = (reviews || []).slice(0, HOME_REVIEW_COUNT);
+    if (!list.length) {
+      root.innerHTML = `<div class="empty">아직 등록된 후기가 없습니다.<br>첫 번째 후기를 남겨 주세요.</div>`;
+      return;
+    }
+    root.innerHTML = list.map(reviewMiniCardHtml).join("");
+    for (const card of $$(".rv-mini[data-id]", root)) {
+      const r = list.find((x) => String(x.id) === card.dataset.id);
+      card.addEventListener("click", () => openReviewView(r));
+    }
   } catch (e) {
     root.innerHTML = `<div class="empty">${esc(e.message)}</div>`;
   }

@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>쥴리 잉글리쉬 · Julie's English Academy</title>
+<meta name="description" content="동백 19년 전통의 영어교습소. 재미있는 파닉스, 읽기가 되는 파닉스. 초·중·고 내신 선행. 상담문의 031-8005-9439">
+<meta name="theme-color" content="#0C3190">
+
+<meta property="og:type" content="website">
+<meta property="og:title" content="쥴리 잉글리쉬 · Julie's English Academy">
+<meta property="og:description" content="미래를 준비하는 영어교육 — 동백 19년차 영어교습소">
+<meta property="og:image" content="/assets/logo-512.png">
+
+<link rel="icon" href="/assets/favicon-64.png" sizes="64x64">
+<link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
+
+<!-- 라틴은 Inter, 한글은 Pretendard (wepic.kr 과 같은 조합) -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<link rel="stylesheet" href="/styles.css?v=1">
+</head>
+<body>
+
+<!-- ============================================================
+     상단 바 — 로고(좌) + 텍스트 전용 메뉴 + 로그인 상태
+     메뉴는 아이콘 없이 이름만 두고, hover·현재 항목에 빨간 밑줄이 그어진다.
+     ============================================================ -->
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="#/" title="쥴리 잉글리쉬 홈">
+      <img src="/assets/logo-256.png" alt="쥴리 잉글리쉬 로고">
+      <span class="brand-text">
+        <b>쥴리 잉글리쉬</b>
+        <small>Julie&rsquo;s English Academy</small>
+      </span>
+    </a>
+
+    <nav class="menu" id="main-menu">
+      <a class="menu-item" href="#/">학원소개</a>
+      <a class="menu-item" href="#/timetable">시간표 안내</a>
+      <a class="menu-item" href="#/my">나의 수업</a>
+      <a class="menu-item" href="#/login" id="menu-login">로그인</a>
+      <a class="menu-item" href="#/alumni">졸업생 소개</a>
+      <a class="menu-item" href="#/about">학원 안내</a>
+      <a class="menu-item menu-admin hidden" href="#/admin">관리자</a>
+      <a class="menu-item menu-me hidden" href="#/me" id="menu-me"></a>
+    </nav>
+
+    <button class="menu-toggle" id="menu-toggle" aria-label="메뉴 열기" aria-expanded="false">
+      <span></span><span></span><span></span>
+    </button>
+  </div>
+</header>
+
+<main id="view"><!-- 화면은 JS가 갈아 끼운다 --></main>
+
+<footer class="site-footer">
+  <div class="footer-inner">
+    <div class="footer-brand">
+      <img src="/assets/logo-256.png" alt="">
+      <div>
+        <b>쥴리 잉글리쉬 영어교습소</b>
+        <span>원장 박영임 (Julie Teacher)</span>
+      </div>
+    </div>
+    <div class="footer-contact" id="footer-contact"></div>
+  </div>
+  <div class="footer-bar">Junior English FIRST Class · 미래를 준비하는 영어교육</div>
+</footer>
+
+<div id="toast" class="toast hidden"></div>
+
+<script type="module" src="/app.js?v=1"></script>
+</body>
+</html>

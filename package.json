@@ -1,0 +1,21 @@
+{
+  "name": "julie-english",
+  "version": "1.0.0",
+  "private": true,
+  "description": "쥴리 잉글리쉬(Julie's English Academy) 홈페이지 — Cloudflare Workers + D1 + R2",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "db:local": "wrangler d1 migrations apply julie-english --local",
+    "db:remote": "wrangler d1 migrations apply julie-english --remote",
+    "hash": "node scripts/hash-password.mjs"
+  },
+  "devDependencies": {
+    "wrangler": "^4.42.0"
+  },
+  "trustedDependencies": [
+    "esbuild",
+    "workerd"
+  ]
+}

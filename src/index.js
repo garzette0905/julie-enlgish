@@ -14,6 +14,39 @@ const PBKDF2_ITERATIONS = 100000;
 // 업로드 한 장/한 편의 최대 크기. Workers 요청 본문 한도(100MB)보다 조금 낮게 잡았다.
 const MAX_UPLOAD_BYTES = 95 * 1024 * 1024;
 
+/* ------------------------------------------------------------
+   브라우저가 <video> 로 못 여는 동영상은 아예 받지 않는다.
+
+   예전에 Xvid 로 만든 AVI 가 올라간 적이 있는데, 목록에는 잘 등록되고
+   썸네일 자리까지 잡히지만 누르면 아무 일도 일어나지 않았다
+   (Chrome: DEMUXER_ERROR_COULD_NOT_OPEN). 올린 사람은 잘 올라간 줄 알고
+   넘어가기 때문에, 올리는 그 자리에서 막고 이유를 알려 주는 편이 낫다.
+
+   MP4(H.264) · WebM · Ogg 만 통과시킨다. MOV 는 안에 든 코덱에 따라
+   되기도 하고 안 되기도 해서 통과시키되, 안 되면 MP4 로 바꾸라고 안내한다.
+   ------------------------------------------------------------ */
+const BLOCKED_VIDEO_EXT = new Set([
+  "avi", "wmv", "mkv", "flv", "mpg", "mpeg", "vob", "asf", "rm", "rmvb", "divx", "3gp", "ts", "m2ts",
+]);
+
+/** 확장자·mime 이 브라우저에서 못 여는 동영상이면 그 이유를 돌려준다. */
+function unplayableVideoReason(name, mime) {
+  const ext = String(name || "").split(".").pop().toLowerCase();
+  const m = String(mime || "").toLowerCase();
+  const looksBlocked =
+    BLOCKED_VIDEO_EXT.has(ext) ||
+    m === "video/avi" ||
+    m === "video/x-msvideo" ||
+    m === "video/x-ms-wmv" ||
+    m === "video/x-matroska" ||
+    m === "video/x-flv";
+  if (!looksBlocked) return null;
+  return (
+    `${ext ? "." + ext + " " : ""}형식은 웹 브라우저에서 재생되지 않습니다. ` +
+    `MP4(H.264) 로 바꿔서 올려 주세요. 긴 영상은 유튜브 링크로 등록하는 방법도 있습니다.`
+  );
+}
+
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
@@ -1201,6 +1234,12 @@ async function createMedia(request, env) {
 
   const mime = file.type || "application/octet-stream";
   const kind = mime.startsWith("video/") ? "video" : "photo";
+
+  // 올라간 뒤에야 "재생이 안 된다" 를 알게 되는 일을 막는다.
+  if (kind === "video") {
+    const why = unplayableVideoReason(file.name, mime);
+    if (why) throw bad(why);
+  }
   const ext = (file.name || "").split(".").pop();
   const key = `media/${Date.now()}-${newToken().slice(0, 10)}${ext ? "." + ext.toLowerCase() : ""}`;
 

@@ -1232,12 +1232,18 @@ function enableMediaDrag(grid) {
   grid.addEventListener("pointercancel", drop);
 }
 
+/* 브라우저가 <video> 로 못 여는 동영상 확장자. 서버 쪽에서도 같은 목록으로 막는다. */
+const UNPLAYABLE_VIDEO =
+  /\.(avi|wmv|mkv|flv|mpe?g|vob|asf|rm|rmvb|divx|3gp|ts|m2ts)$/i;
+
 function openUploadModal(reload) {
   const form = html(`<form novalidate>
     <div class="field">
       <label>사진 / 동영상 파일 <span style="color:var(--red)">*</span></label>
       <input name="file" type="file" accept="image/*,video/*" multiple>
-      <div class="hint">한 파일당 95MB까지. 여러 개를 한 번에 고를 수 있습니다.</div>
+      <div class="hint">한 파일당 95MB까지. 여러 개를 한 번에 고를 수 있습니다.
+        <br>동영상은 <b>MP4</b> 로 올려 주세요. AVI·WMV·MKV 는 브라우저에서 재생되지 않습니다.</div>
+      <div id="up-warn" class="hint" style="color:var(--red)"></div>
     </div>
     <div class="field"><label>제목 (비우면 파일 이름을 씁니다)</label>
       <input name="title" type="text"></div>
@@ -1246,6 +1252,15 @@ function openUploadModal(reload) {
     <div class="hint">올린 항목은 목록 맨 뒤에 붙습니다. 순서는 목록에서 끌어서 바꾸세요.</div>
     <div id="up-progress" class="hint"></div>
   </form>`);
+
+  // 고른 순간에 알려 준다 — 올리고 나서 "재생이 안 된다" 를 알게 되면 늦다.
+  const fileEl = $("[name=file]", form);
+  fileEl.addEventListener("change", () => {
+    const bad = [...(fileEl.files || [])].filter((f) => UNPLAYABLE_VIDEO.test(f.name));
+    $("#up-warn", form).textContent = bad.length
+      ? `${bad.map((f) => f.name).join(", ")} — 브라우저에서 재생되지 않는 형식입니다. MP4 로 바꿔서 올려 주세요.`
+      : "";
+  });
 
   const modal = openModal({
     title: "사진 · 동영상 올리기",

@@ -26,7 +26,7 @@ export async function renderAdmin(view, tab = "inquiries") {
   await refreshSession();
   if (!session.isAdmin) {
     view.innerHTML = `<div class="section"><div class="wrap">
-      <div class="empty">관리자만 볼 수 있는 화면입니다. <a href="#/login" style="color:var(--navy);font-weight:600">로그인</a></div>
+      <div class="empty">관리자만 볼 수 있는 화면입니다. <a href="/login" style="color:var(--navy);font-weight:600">로그인</a></div>
     </div></div>`;
     return;
   }
@@ -42,7 +42,7 @@ export async function renderAdmin(view, tab = "inquiries") {
     <section class="section tight"><div class="wrap">
       <div class="admin-shell">
         <nav class="admin-nav">
-          ${TABS.map((t) => `<a href="#/admin/${t.key}" class="${t.key === tab ? "active" : ""}">${esc(t.label)}</a>`).join("")}
+          ${TABS.map((t) => `<a href="/admin/${t.key}" class="${t.key === tab ? "active" : ""}">${esc(t.label)}</a>`).join("")}
         </nav>
         <div class="admin-body" id="admin-body"><div class="loading">불러오는 중…</div></div>
       </div>
@@ -1417,6 +1417,8 @@ const SETTING_FIELDS = [
   ["email", "이메일", "garzetta@hanmail.net"],
   ["address", "위치", "초당마을 삼부르네상스아파트 상가동 204호"],
   // 카카오 채널 자리는 "상담신청 · 문의" 화면이 대신한다.
+  ["verify_naver", "네이버 서치어드바이저 소유확인 코드", "메타태그의 content 값만 붙여넣기"],
+  ["verify_google", "구글 서치콘솔 소유확인 코드", "메타태그의 content 값만 붙여넣기"],
 ];
 
 const isUrl = (v) => /^https?:\/\/\S+$/i.test(String(v || "").trim());
@@ -1444,6 +1446,7 @@ async function adminSettings(body) {
         <div class="hint" style="margin-bottom:14px">
           배너를 비워 두면 홈 화면에서 배너 줄이 사라집니다.
           배너 문구를 바꾸면 <b style="color:var(--red)">14일 동안 NEW 표시</b>가 붙습니다.
+          <br>소유확인 코드는 <b>content=" "</b> 안의 값만 넣으세요 (태그 전체를 넣지 않습니다).
           ${bannerNewNote(updated.notice_banner)}
         </div>
         <button class="btn red" type="submit" id="set-save">저장</button>

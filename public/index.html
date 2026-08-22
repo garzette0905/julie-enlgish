@@ -3,14 +3,25 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>쥴리 잉글리쉬 · Julie's English Academy</title>
-<meta name="description" content="동백 19년 전통의 영어교습소. 재미있는 파닉스, 읽기가 되는 파닉스. 초·중·고 내신 선행. 상담문의 031-8005-9439">
+
+<!-- 아래 title / description / og / canonical / robots 는 Worker(src/index.js)가
+     주소에 맞게 바꿔 끼운다. 여기 값은 홈 화면 기준의 기본값이다. -->
+<title>쥴리 잉글리쉬 · 용인 동백 영어학원 (초등·중등 영어교습소)</title>
+<meta name="description" content="용인 동백 초당마을 영어교습소. 2007년부터 이어온 파닉스·초등·중등 영어. 원장 직강, 내신 선행. 상담문의 031-8005-9439">
+<meta name="keywords" content="동백 영어학원, 초당마을 영어학원, 용인 영어교습소, 동백 파닉스, 초등 영어학원, 중등 내신 영어, 쥴리 잉글리쉬">
+<link rel="canonical" href="https://www.julieenglish.co.kr/">
+<meta name="robots" content="index, follow">
 <meta name="theme-color" content="#0C3190">
+<meta name="author" content="쥴리 잉글리쉬 영어교습소">
 
 <meta property="og:type" content="website">
-<meta property="og:title" content="쥴리 잉글리쉬 · Julie's English Academy">
-<meta property="og:description" content="미래를 준비하는 영어교육 — 동백 19년차 영어교습소">
-<meta property="og:image" content="/assets/logo-512.png">
+<meta property="og:site_name" content="쥴리 잉글리쉬">
+<meta property="og:locale" content="ko_KR">
+<meta property="og:url" content="https://www.julieenglish.co.kr/">
+<meta property="og:title" content="쥴리 잉글리쉬 · 용인 동백 영어학원">
+<meta property="og:description" content="용인 동백 초당마을 영어교습소. 2007년부터 이어온 파닉스·초등·중등 영어. 원장 직강.">
+<meta property="og:image" content="https://www.julieenglish.co.kr/assets/logo-512.png">
+<meta name="twitter:card" content="summary">
 
 <link rel="icon" href="/assets/favicon-64.png" sizes="64x64">
 <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
@@ -20,17 +31,45 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
-<link rel="stylesheet" href="/styles.css?v=8">
+<link rel="stylesheet" href="/styles.css?v=9">
+
+<!-- 지역 검색(네이버 플레이스·구글 지도)에서 학원으로 인식되게 하는 정보.
+     상호·주소·전화번호는 사이트에 적힌 것과 똑같이 맞춰야 효과가 있다. -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "EducationalOrganization",
+  "name": "쥴리 잉글리쉬 영어교습소",
+  "alternateName": "Julie's English Academy",
+  "url": "https://www.julieenglish.co.kr/",
+  "logo": "https://www.julieenglish.co.kr/assets/logo-512.png",
+  "image": "https://www.julieenglish.co.kr/assets/logo-512.png",
+  "description": "용인 동백 초당마을 영어교습소. 2007년부터 이어온 파닉스·초등·중등 영어 교육.",
+  "telephone": "+82-31-8005-9439",
+  "foundingDate": "2007",
+  "address": {
+    "@type": "PostalAddress",
+    "addressCountry": "KR",
+    "addressRegion": "경기도",
+    "addressLocality": "용인시 기흥구",
+    "streetAddress": "초당마을 삼부르네상스아파트 상가동 204호"
+  },
+  "areaServed": ["용인시 기흥구 동백동", "초당마을", "동백지구"],
+  "knowsAbout": ["파닉스", "초등 영어", "중등 영어 내신", "고등 영어 선행"]
+}
+</script>
 </head>
 <body>
 
 <!-- ============================================================
      상단 바 — 로고(좌) + 텍스트 전용 메뉴 + 로그인 상태
      메뉴는 아이콘 없이 이름만 두고, hover·현재 항목에 빨간 밑줄이 그어진다.
+     주소는 /reviews 처럼 진짜 경로다. 눌렀을 때 새로고침 없이 화면만 바꾸는 처리는
+     app.js 가 링크 클릭을 가로채서 한다.
      ============================================================ -->
 <header class="topbar">
   <div class="topbar-inner">
-    <a class="brand" href="#/" title="쥴리 잉글리쉬 홈">
+    <a class="brand" href="/" title="쥴리 잉글리쉬 홈">
       <img src="/assets/logo-256.png" alt="쥴리 잉글리쉬 로고">
       <span class="brand-text">
         <b>쥴리 잉글리쉬</b>
@@ -39,14 +78,14 @@
     </a>
 
     <nav class="menu" id="main-menu">
-      <a class="menu-item" href="#/">학원소개</a>
-      <a class="menu-item" href="#/about">학원 소식</a>
-      <a class="menu-item" href="#/reviews">졸업생 · 학부모 후기</a>
-      <a class="menu-item" href="#/contact">상담신청 · 문의</a>
-      <a class="menu-item" href="#/my">나의 수업</a>
-      <a class="menu-item" href="#/login" id="menu-login">로그인</a>
-      <a class="menu-item menu-admin hidden" href="#/admin">관리자</a>
-      <a class="menu-item menu-me hidden" href="#/me" id="menu-me"></a>
+      <a class="menu-item" href="/">학원소개</a>
+      <a class="menu-item" href="/about">학원 소식</a>
+      <a class="menu-item" href="/reviews">졸업생 · 학부모 후기</a>
+      <a class="menu-item" href="/contact">상담신청 · 문의</a>
+      <a class="menu-item" href="/my">나의 수업</a>
+      <a class="menu-item" href="/login" id="menu-login">로그인</a>
+      <a class="menu-item menu-admin hidden" href="/admin">관리자</a>
+      <a class="menu-item menu-me hidden" href="/me" id="menu-me"></a>
     </nav>
 
     <button class="menu-toggle" id="menu-toggle" aria-label="메뉴 열기" aria-expanded="false">
@@ -55,7 +94,32 @@
   </div>
 </header>
 
-<main id="view"><!-- 화면은 JS가 갈아 끼운다 --></main>
+<!-- 화면은 JS가 갈아 끼운다.
+     아래 글은 JS가 돌기 전에 검색로봇이 읽어 가는 몫이다.
+     네이버·다음 로봇은 자바스크립트를 제대로 돌리지 않는 경우가 많아서,
+     Worker 가 주소에 맞는 내용을 이 자리에 미리 채워 넣는다. -->
+<main id="view">
+  <div class="section"><div class="wrap">
+    <h1>쥴리 잉글리쉬 영어교습소 · 용인 동백</h1>
+    <p>
+      경기도 용인시 기흥구 초당마을에 있는 영어교습소입니다.
+      2007년부터 동백에서 파닉스·초등 영어·중등 내신 선행을 가르쳐 왔습니다.
+      원장이 직접 모든 수업을 진행합니다.
+    </p>
+    <ul>
+      <li>재미있는 파닉스, 읽기가 되는 파닉스</li>
+      <li>초·중·고 내신 선행</li>
+      <li>월·수·금 60분 / 화·목 90분 수업</li>
+      <li>파닉스 과정 · 초등 과정 · 선행 중등 과정 · 선행 고등 과정</li>
+    </ul>
+    <p>상담 문의 031-8005-9439 · 초당마을 삼부르네상스아파트 상가동 204호</p>
+    <p>
+      <a href="/about">학원 소식</a> ·
+      <a href="/reviews">졸업생 · 학부모 후기</a> ·
+      <a href="/contact">상담신청 · 문의</a>
+    </p>
+  </div></div>
+</main>
 
 <footer class="site-footer">
   <div class="footer-inner">
@@ -73,6 +137,6 @@
 
 <div id="toast" class="toast hidden"></div>
 
-<script type="module" src="/app.js?v=8"></script>
+<script type="module" src="/app.js?v=9"></script>
 </body>
 </html>

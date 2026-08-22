@@ -19,7 +19,7 @@ export default {
     const url = new URL(request.url);
 
     if (!url.pathname.startsWith("/api/")) {
-      return env.ASSETS.fetch(request);
+      return servePage(request, env, url);
     }
 
     try {
@@ -33,6 +33,231 @@ export default {
     }
   },
 };
+
+/* ============================================================
+   화면 서빙 — 검색엔진이 주소마다 다른 페이지로 인식하게 만든다
+
+   이 사이트는 자바스크립트가 화면을 그리는 구조라, 아무것도 안 하면
+   어느 주소로 들어와도 검색로봇에게는 똑같은 빈 껍데기로 보인다.
+   네이버(Yeti)·다음(Daumoa) 로봇은 자바스크립트를 제대로 돌리지 않으므로,
+   Worker 가 index.html 을 내려주기 전에 주소에 맞는 제목·설명·본문을
+   HTMLRewriter 로 갈아 끼운다.
+   ============================================================ */
+
+const SITE_ORIGIN = "https://www.julieenglish.co.kr";
+const SITE_IMAGE = `${SITE_ORIGIN}/assets/logo-512.png`;
+
+/** 주소별 제목·설명, 그리고 로봇이 읽어 갈 본문 */
+const PAGES = {
+  "/": {
+    title: "쥴리 잉글리쉬 · 용인 동백 영어학원 (초등·중등 영어교습소)",
+    description:
+      "용인 동백 초당마을 영어교습소. 2007년부터 이어온 파닉스·초등·중등 영어. 원장 직강, 내신 선행. 상담문의 031-8005-9439",
+    body: `
+      <h1>쥴리 잉글리쉬 영어교습소 · 용인 동백</h1>
+      <p>경기도 용인시 기흥구 초당마을에 있는 영어교습소입니다.
+         2007년부터 동백에서 파닉스·초등 영어·중등 내신 선행을 가르쳐 왔습니다.
+         원장이 직접 모든 수업을 진행합니다.</p>
+      <h2>수업 안내</h2>
+      <ul>
+        <li>월·수·금 60분 수업 / 화·목 90분 수업</li>
+        <li>오프라인 중심 원장 직강 수업</li>
+        <li>주 5일 과제 부여</li>
+        <li>English Speaking 병행 수업</li>
+      </ul>
+      <h2>과정</h2>
+      <ul>
+        <li>파닉스 과정 — 알파벳 소리에서 시작해 스스로 읽어내는 단계까지</li>
+        <li>초등 과정 — 읽기·듣기·쓰기를 고르게</li>
+        <li>선행 중등 과정 — 중등 문법과 독해, 내신 대비</li>
+        <li>선행 고등 과정 — 고등 문법·독해와 내신 대비</li>
+      </ul>
+      <h2>선생님</h2>
+      <ul>
+        <li>한국외국어대학교 학사 / 석사 졸업</li>
+        <li>중고등 내신대비 지도 (청솔학원)</li>
+        <li>캐나다 TESOL 수료 · 캐나다 영어 교사</li>
+        <li>영어유치원 · 어학원 16년 경력</li>
+      </ul>
+      <h2>상담 문의</h2>
+      <p>전화 031-8005-9439 · 휴대폰 010-3323-9439</p>
+      <p>위치: 경기도 용인시 기흥구 초당마을 삼부르네상스아파트 상가동 204호</p>`,
+  },
+
+  "/about": {
+    title: "학원 소식 · 쥴리 잉글리쉬 (용인 동백 영어학원)",
+    description:
+      "쥴리 잉글리쉬의 수업 모습과 학원 공간을 사진·영상으로 소개합니다. 용인 동백 초당마을 영어교습소.",
+    body: `
+      <h1>학원 소식</h1>
+      <p>쥴리 잉글리쉬의 수업 모습과 학원 공간을 사진·영상으로 소개합니다.</p>
+      <h2>찾아오시는 길</h2>
+      <p>경기도 용인시 기흥구 초당마을 삼부르네상스아파트 상가동 204호</p>
+      <p>상담 문의 031-8005-9439</p>`,
+  },
+
+  "/reviews": {
+    title: "졸업생 · 학부모 후기 · 쥴리 잉글리쉬 (용인 동백 영어학원)",
+    description:
+      "쥴리 잉글리쉬를 다닌 학생과 학부모님이 남긴 후기입니다. 용인 동백 초당마을 영어교습소.",
+    body: `
+      <h1>졸업생 · 학부모 후기</h1>
+      <p>쥴리 잉글리쉬와 함께한 이야기를 남겨 주세요. 사진도 함께 올릴 수 있습니다.</p>
+      <p>최소 5년에서 최대 9년까지 꾸준히 함께한 학생들이 명문고·명문대에 진학했습니다.</p>`,
+  },
+
+  "/contact": {
+    title: "상담신청 · 문의 · 쥴리 잉글리쉬 (용인 동백 영어학원)",
+    description:
+      "용인 동백 쥴리 잉글리쉬 수업 상담을 신청하세요. 전화 031-8005-9439 또는 온라인으로 남겨 주시면 원장이 직접 연락드립니다.",
+    body: `
+      <h1>상담신청 · 문의</h1>
+      <p>남겨주신 연락처로 원장이 직접 연락드립니다.</p>
+      <p>전화 031-8005-9439 · 휴대폰 010-3323-9439</p>
+      <p>위치: 경기도 용인시 기흥구 초당마을 삼부르네상스아파트 상가동 204호</p>`,
+  },
+};
+
+// 로그인해야 보이는 화면은 검색에 잡힐 이유가 없다.
+const PRIVATE_PAGES = {
+  "/login": "로그인 · 쥴리 잉글리쉬",
+  "/signup": "회원가입 · 쥴리 잉글리쉬",
+  "/my": "나의 수업 · 쥴리 잉글리쉬",
+  "/me": "내 정보 · 쥴리 잉글리쉬",
+  "/admin": "관리자 · 쥴리 잉글리쉬",
+};
+
+/** 검색엔진 소유확인 코드는 자주 바뀌지 않으니 잠깐 들고 있는다. */
+let verifyCache = { at: 0, value: null };
+
+async function getVerifyTags(env) {
+  const now = Date.now();
+  if (verifyCache.value && now - verifyCache.at < 60_000) return verifyCache.value;
+  try {
+    const { results } = await env.DB.prepare(
+      `SELECT key, value FROM settings WHERE key IN ('verify_naver', 'verify_google')`
+    ).all();
+    const out = {};
+    for (const r of results || []) if (r.value) out[r.key] = r.value;
+    verifyCache = { at: now, value: out };
+    return out;
+  } catch {
+    return {};
+  }
+}
+
+function pageInfoFor(pathname) {
+  const path = pathname.replace(/\/+$/, "") || "/";
+  if (PAGES[path]) return { path, ...PAGES[path], index: true };
+
+  // /admin/tuition 처럼 뒤에 더 붙는 주소도 비공개로 본다.
+  for (const p of Object.keys(PRIVATE_PAGES)) {
+    if (path === p || path.startsWith(p + "/")) {
+      return { path, title: PRIVATE_PAGES[p], description: "", body: "", index: false };
+    }
+  }
+  return null;
+}
+
+async function servePage(request, env, url) {
+  let info = pageInfoFor(url.pathname);
+  let status = 200;
+
+  // 아는 화면 주소가 아니면 파일 그대로 (styles.css, robots.txt, /assets/... 등)
+  if (!info) {
+    const asset = await env.ASSETS.fetch(request);
+    const type = asset.headers.get("content-type") || "";
+
+    // 없는 파일을 부르면 Cloudflare 가 index.html 을 대신 돌려준다(SPA 처리).
+    // 그대로 두면 존재하지 않는 주소가 200 으로 응답해서 검색엔진이
+    // "가짜 404" 로 보고 색인을 어지럽힌다. 진짜 404 로 돌려준다.
+    if (!type.includes("text/html")) return asset;
+
+    info = {
+      path: url.pathname,
+      title: "찾을 수 없는 페이지 · 쥴리 잉글리쉬",
+      description: "",
+      body: `<h1>찾을 수 없는 페이지입니다</h1>
+             <p><a href="/">쥴리 잉글리쉬 홈으로 가기</a></p>`,
+      index: false,
+    };
+    status = 404;
+  }
+
+  // 어느 화면이든 내용은 같은 index.html 이다. 그 위에 주소별 정보를 덧씌운다.
+  const res = await env.ASSETS.fetch(new Request(`${url.origin}/index.html`, { headers: request.headers }));
+  if (!res.ok) return res;
+
+  const verify = await getVerifyTags(env);
+  const canonical = info.path === "/" ? `${SITE_ORIGIN}/` : `${SITE_ORIGIN}${info.path}`;
+
+  const out = new HTMLRewriter()
+    .on("title", {
+      element(el) {
+        el.setInnerContent(info.title);
+      },
+    })
+    .on('meta[name="description"]', {
+      element(el) {
+        if (info.description) el.setAttribute("content", info.description);
+      },
+    })
+    .on('meta[name="robots"]', {
+      element(el) {
+        el.setAttribute("content", info.index ? "index, follow" : "noindex, nofollow");
+      },
+    })
+    .on('link[rel="canonical"]', {
+      element(el) {
+        el.setAttribute("href", canonical);
+      },
+    })
+    .on('meta[property="og:title"]', {
+      element(el) {
+        el.setAttribute("content", info.title);
+      },
+    })
+    .on('meta[property="og:description"]', {
+      element(el) {
+        if (info.description) el.setAttribute("content", info.description);
+      },
+    })
+    .on('meta[property="og:url"]', {
+      element(el) {
+        el.setAttribute("content", canonical);
+      },
+    })
+    .on("head", {
+      element(el) {
+        // 네이버 서치어드바이저 / 구글 서치콘솔 소유확인 태그.
+        // 관리자 화면 → 사이트 설정에서 코드를 넣으면 여기에 붙는다.
+        if (verify.verify_naver) {
+          el.append(`<meta name="naver-site-verification" content="${escAttr(verify.verify_naver)}">`, { html: true });
+        }
+        if (verify.verify_google) {
+          el.append(`<meta name="google-site-verification" content="${escAttr(verify.verify_google)}">`, { html: true });
+        }
+      },
+    })
+    .on("main#view", {
+      element(el) {
+        // 로봇이 읽어 갈 본문. 브라우저에서는 JS 가 곧바로 갈아 끼운다.
+        el.setInnerContent(
+          info.body ? `<div class="section"><div class="wrap">${info.body}</div></div>` : "",
+          { html: true }
+        );
+      },
+    })
+    .transform(res);
+
+  const headers = new Headers(out.headers);
+  headers.set("content-type", "text/html; charset=utf-8");
+  // 화면마다 내용이 다르므로 중간 캐시가 뒤섞지 않도록 짧게만 캐시한다.
+  headers.set("cache-control", "public, max-age=0, must-revalidate");
+  return new Response(out.body, { status, headers });
+}
+
+const escAttr = (v) => String(v).replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
 
 /* ============================================================
    라우팅

@@ -1,0 +1,36 @@
+# 쥴리 잉글리쉬 — 검색엔진 안내
+# 이 파일을 우리가 직접 두지 않으면 Cloudflare 가 만든 기본 파일이 대신 응답한다.
+# 그 파일에는 사이트맵 위치가 없어서 검색 등록에 불리하다.
+
+User-agent: *
+Allow: /
+
+# 로그인해야 보이는 화면과 API 는 검색에 잡힐 이유가 없다.
+Disallow: /api/
+Disallow: /login
+Disallow: /signup
+Disallow: /my
+Disallow: /me
+Disallow: /admin
+
+# 네이버 검색로봇
+User-agent: Yeti
+Allow: /
+Disallow: /api/
+Disallow: /login
+Disallow: /signup
+Disallow: /my
+Disallow: /me
+Disallow: /admin
+
+# 다음 검색로봇
+User-agent: Daumoa
+Allow: /
+Disallow: /api/
+Disallow: /login
+Disallow: /signup
+Disallow: /my
+Disallow: /me
+Disallow: /admin
+
+Sitemap: https://www.julieenglish.co.kr/sitemap.xml

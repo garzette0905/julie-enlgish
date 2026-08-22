@@ -104,17 +104,15 @@ export async function refreshSession() {
 /* ---------- 화면 이동 ---------- */
 
 /**
- * 해시 주소를 바꿔 화면을 옮긴다.
- * 목적지가 지금 주소와 같으면 hashchange 가 안 뜨므로 직접 쏘아 준다.
- * (예: "나의 수업"(#/my)에서 로그인 폼이 뜬 뒤 로그인에 성공했을 때)
+ * 화면을 옮긴다. 주소는 /reviews 처럼 진짜 경로를 쓴다.
+ * 실제 이동은 app.js 가 맡고(주소 변경 + 다시 그리기), 여기서는 그걸 부르기만 한다.
+ * 목적지가 지금 주소와 같아도 다시 그린다
+ * ("나의 수업"에서 로그인 폼이 뜬 뒤 로그인에 성공한 경우가 그렇다).
  */
 export function navigate(path) {
-  const target = path.startsWith("#") ? path : `#${path}`;
-  if (location.hash === target) {
-    window.dispatchEvent(new HashChangeEvent("hashchange"));
-  } else {
-    location.hash = target;
-  }
+  const go = window.__navigate;
+  if (typeof go === "function") go(path);
+  else location.assign(path);
 }
 
 /* ---------- 토스트 ---------- */

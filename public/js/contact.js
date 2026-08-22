@@ -153,7 +153,7 @@ function bindSubmit(form, root, kind) {
         <div class="sent-mark">&#10003;</div>
         <h2>${kind === "consult" ? "상담신청이 접수되었습니다" : "문의가 접수되었습니다"}</h2>
         <p>${esc(r.message)}</p>
-        <a class="btn ghost" href="#/">홈으로</a>
+        <a class="btn ghost" href="/">홈으로</a>
       </div>`;
     } catch (err) {
       toast(err.message, true);

@@ -213,7 +213,7 @@ function drawSignup(root, switchTo) {
         <div style="font-size:44px;line-height:1">&#9989;</div>
         <h2 style="font-size:20px;color:var(--navy);margin:12px 0 8px">가입 신청이 접수되었습니다</h2>
         <p style="font-size:14.5px;color:var(--text-muted);margin:0 0 20px">${esc(r.message)}</p>
-        <a class="btn" href="#/">홈으로</a>
+        <a class="btn" href="/">홈으로</a>
       </div>`;
     } catch (err) {
       toast(err.message, true);
@@ -277,7 +277,7 @@ export async function renderMy(view) {
     }
 
     root.innerHTML = head + body +
-      `<p style="margin-top:26px"><a class="btn ghost" href="#/me">내 정보 수정</a></p>`;
+      `<p style="margin-top:26px"><a class="btn ghost" href="/me">내 정보 수정</a></p>`;
   } catch (e) {
     root.innerHTML = `<div class="empty">${esc(e.message)}</div>`;
   }

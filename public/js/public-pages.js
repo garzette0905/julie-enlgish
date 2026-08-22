@@ -62,8 +62,8 @@ export async function renderHome(view) {
             동백에서 2007년부터 수업을 해오는 중이며, 학생 한명 한명을 내 자녀처럼 사랑으로 가르칩니다
           </p>
           <div class="hero-actions">
-            <a class="btn" href="#/contact">상담신청 하기</a>
-            <a class="btn outline" href="#/reviews">후기 보기</a>
+            <a class="btn" href="/contact">상담신청 하기</a>
+            <a class="btn outline" href="/reviews">후기 보기</a>
           </div>
         </div>
         <div class="hero-logo"><img src="/assets/logo-512.png" alt="쥴리 잉글리쉬 로고"></div>
@@ -258,7 +258,7 @@ function renderContactGrid(root, s) {
       )
       .join("") +
     // 전화가 어려운 시간에도 남길 수 있도록, 연락처 옆에 신청 창구를 같이 둔다.
-    `<a class="contact-item cta" href="#/contact">
+    `<a class="contact-item cta" href="/contact">
       <div class="k">상담신청 · 문의</div>
       <div class="v">온라인으로 남기기 &rarr;</div>
     </a>`;
@@ -278,7 +278,7 @@ export async function fillFooter() {
 
   el.innerHTML =
     rows.map(([k, v]) => `<div><span>${esc(k)}</span> ${esc(v)}</div>`).join("") +
-    `<div><span>상담</span> <a class="footer-cta" href="#/contact">상담신청 · 문의 &rarr;</a></div>`;
+    `<div><span>상담</span> <a class="footer-cta" href="/contact">상담신청 · 문의 &rarr;</a></div>`;
 }
 
 /* ============================================================

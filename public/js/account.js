@@ -127,15 +127,14 @@ function drawSignup(root, switchTo) {
         <div class="hint">수업 안내와 상담 연락이 이 번호로 갑니다.</div>
       </div>
 
-      <div class="grid-2">
-        <div class="field">
-          <label for="su-phone">학생 연락처</label>
-          <input id="su-phone" name="phone" type="tel" inputmode="tel" placeholder="없으면 비워 두세요">
-        </div>
-        <div class="field">
-          <label for="su-email">이메일</label>
-          <input id="su-email" name="email" type="email" placeholder="name@example.com">
-        </div>
+      <div class="field">
+        <label for="su-phone">학생 연락처</label>
+        <input id="su-phone" name="phone" type="tel" inputmode="tel" placeholder="없으면 비워 두세요">
+      </div>
+
+      <div class="field">
+        <label for="su-email">이메일</label>
+        <input id="su-email" name="email" type="email" placeholder="name@example.com">
       </div>
 
       <button class="btn red block" type="submit" id="su-submit" style="margin-top:6px">가입 신청</button>

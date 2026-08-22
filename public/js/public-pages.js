@@ -1,6 +1,6 @@
 /**
  * 로그인 없이 볼 수 있는 화면들
- *   학원소개(홈) · 학원 소식
+ *   학원소개(홈) · 학원 소식·사진
  *   (시간표·졸업생 소개 화면은 걷어냈고, 졸업생 명단은 홈 Result 섹션에 남아 있다)
  */
 import {
@@ -9,6 +9,14 @@ import {
 
 /* 여러 화면이 같이 쓰는 값들은 한 번만 받아서 들고 있는다. */
 let cache = { settings: null, updated: null, classes: null };
+
+/* 찾아오시는 길에 다는 지도 링크.
+   화면에 적는 주소는 아파트 이름이라 지도에서 바로 검색되지 않는다.
+   지도는 도로명 주소(상가동 204호가 있는 건물)로 열고,
+   설정에 map_url 을 넣어 두면 그 주소를 대신 쓴다. */
+const MAP_ADDRESS = "용인시 기흥구 동백1로 8";
+const DEFAULT_MAP_URL = `https://map.naver.com/p/search/${encodeURIComponent(MAP_ADDRESS)}`;
+const mapUrl = (s) => ((s && s.map_url) || "").trim() || DEFAULT_MAP_URL;
 
 export async function getSettings() {
   if (!cache.settings) {
@@ -75,8 +83,10 @@ export async function renderHome(view) {
   if (banner) {
     // 배너 문구가 바뀐 지 14일 안이면 NEW 를 붙여 눈에 띄게 한다.
     const isNew = withinDays(bannerUpdatedAt(), 14);
+    // 언제 올린 소식인지 문구 옆에 같이 적어 준다.
+    const posted = kstDate(bannerUpdatedAt());
     view.append(html(`<div class="notice-strip">
-      ${isNew ? `<span class="new-badge">NEW</span>` : ""}${esc(banner)}
+      ${isNew ? `<span class="new-badge">NEW</span>` : ""}${esc(banner)}${posted ? `<span class="notice-date">${esc(posted)}</span>` : ""}
     </div>`));
   }
 
@@ -101,7 +111,7 @@ export async function renderHome(view) {
           <div class="feature">
             <span class="num">01</span>
             <h3>재미있는 파닉스</h3>
-            <p>소리부터 차근차근. 읽기의 성취감도 느끼고, 재미있는 수업방식</p>
+            <p>소리부터 차근차근. 읽기의 성취감도 느끼고, 재미있는 수업방식으로 진행됩니다</p>
           </div>
           <div class="feature">
             <span class="num">02</span>
@@ -116,7 +126,7 @@ export async function renderHome(view) {
           <div class="feature">
             <span class="num">04</span>
             <h3>주 5일 과제</h3>
-            <p>수업이 없는 날에도 과제로 이어집니다. 매일 조금씩이 결국 실력이 됩니다.</p>
+            <p>수업이 없는 날에도 과제로 이어집니다. 매일 매일의 공부가 영어 실력이 됩니다</p>
           </div>
         </div>
       </div>
@@ -287,8 +297,8 @@ function openReviewView(r) {
   const photos = r.photos || [];
   const body = html(`<div class="rv-view">
     <div class="rv-view-meta">
-      <b>${esc(r.author_name)}</b>${r.author_role === "admin" ? ` <span class="badge red">원장</span>` : ""}
-      <span>${esc(kstDate(r.created_at))}</span>
+      <span class="who"><b>${esc(r.author_name)}</b>${r.author_role === "admin" ? ` <span class="badge red">원장</span>` : ""}</span>
+      <span class="date">${esc(kstDate(r.created_at))}</span>
     </div>
     ${r.title ? `<h4 class="rv-view-title">${esc(r.title)}</h4>` : ""}
     ${r.body ? `<div class="rv-body">${esc(r.body)}</div>` : ""}
@@ -339,8 +349,17 @@ function renderContactGrid(root, s) {
     ["Mobile", s.mobile, `tel:${(s.mobile || "").replace(/-/g, "")}`],
     // 이메일은 링크로 걸지 않는다(메일 앱이 열리는 대신 그대로 보이게).
     ["E-mail", s.email, null],
-    ["위치", s.address, null],
   ].filter(([, v]) => v);
+
+  // 위치는 주소만으로 찾아오기 어려워서, 옆에 지도로 바로 넘어가는 링크를 둔다.
+  const addressItem = s.address
+    ? `<div class="contact-item">
+        <div class="k">위치</div>
+        <div class="v">${esc(s.address)}
+          <a class="map-link" href="${esc(mapUrl(s))}" target="_blank" rel="noopener noreferrer">(지도보기)</a>
+        </div>
+      </div>`
+    : "";
 
   root.innerHTML =
     items
@@ -351,6 +370,7 @@ function renderContactGrid(root, s) {
         </div>`
       )
       .join("") +
+    addressItem +
     // 전화가 어려운 시간에도 남길 수 있도록, 연락처 옆에 신청 창구를 같이 둔다.
     `<a class="contact-item cta" href="/contact">
       <div class="k">상담신청 · 문의</div>
@@ -367,23 +387,27 @@ export async function fillFooter() {
     ["전화", s.phone],
     ["휴대폰", s.mobile],
     ["이메일", s.email],
-    ["위치", s.address],
   ].filter(([, v]) => v);
 
   el.innerHTML =
     rows.map(([k, v]) => `<div><span>${esc(k)}</span> ${esc(v)}</div>`).join("") +
+    (s.address
+      ? `<div><span>위치</span> ${esc(s.address)}
+          <a class="map-link" href="${esc(mapUrl(s))}" target="_blank" rel="noopener noreferrer">(지도보기)</a>
+        </div>`
+      : "") +
     `<div><span>상담</span> <a class="footer-cta" href="/contact">상담신청 · 문의 &rarr;</a></div>`;
 }
 
 /* ============================================================
-   학원 소식 — 사진 / 동영상
+   학원 소식·사진 — 사진 / 동영상
    ============================================================ */
 
 export async function renderAbout(view) {
   view.innerHTML = "";
   view.append(html(`
     <div class="page-head"><div class="wrap">
-      <h1>학원 소식</h1>
+      <h1>학원 소식·사진</h1>
       <p>수업 모습과 학원 공간을 사진·영상으로 소개합니다.</p>
     </div></div>
     <section class="section"><div class="wrap">

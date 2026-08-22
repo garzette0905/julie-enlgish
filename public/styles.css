@@ -393,6 +393,12 @@ table.data td.actions .btn { margin-left: 5px; }
   font-size: clamp(14px, 2vw, 16.5px); font-weight: 700; color: #6a4b00; letter-spacing: -0.02em;
 }
 
+/* 배너를 올린 날짜 — 문구 옆에 조용히 붙는다. */
+.notice-date {
+  margin-left: 10px; font-size: 12.5px; font-weight: 600;
+  color: #8a6b1f; font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+
 /* 배너 문구가 바뀐 지 14일 안이면 붙는 표시 */
 .new-badge {
   display: inline-block; vertical-align: 2px; margin-right: 8px;
@@ -501,6 +507,11 @@ table.data td.actions .btn { margin-left: 5px; }
 .contact-item .v a { display: inline-flex; align-items: center; gap: 7px; }
 .contact-item .v a:hover { color: var(--red); text-decoration: underline; }
 
+/* 주소 옆 "(지도보기)" — 주소 글씨보다 작게, 눈에는 띄게. */
+.map-link { font-size: 13.5px; font-weight: 700; color: var(--red); white-space: nowrap; }
+.map-link:hover { text-decoration: underline; }
+.footer-contact .map-link { color: #fff; }
+
 /* 연락처 줄 끝에 붙는 상담신청 카드 */
 .contact-item.cta {
   display: block; background: var(--navy); border-color: var(--navy);
@@ -525,7 +536,7 @@ table.data td.actions .btn { margin-left: 5px; }
 .alumni-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-md); }
 .alumni-card::before {
   content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 5px;
-  background: linear-gradient(180deg, var(--red), var(--navy));
+  background: var(--navy);
 }
 .alumni-card .yr { font-size: 11.5px; font-weight: 700; color: var(--red); letter-spacing: 0.04em; }
 .alumni-card .nm { font-size: 21px; font-weight: 800; color: var(--navy); letter-spacing: -0.02em; margin: 2px 0 6px; }
@@ -575,7 +586,11 @@ table.data td.actions .btn { margin-left: 5px; }
   display: flex; align-items: center; gap: 8px; font-size: 14.5px; color: var(--navy);
   padding-bottom: 12px; margin-bottom: 12px; border-bottom: 1px solid var(--bg-soft);
 }
-.rv-view-meta span { margin-left: auto; font-size: 12.5px; color: var(--text-faint); font-variant-numeric: tabular-nums; }
+/* 이름과 원장 표시는 왼쪽에 붙여 두고, 날짜만 오른쪽 끝으로 보낸다. */
+.rv-view-meta .who { display: inline-flex; align-items: center; gap: 8px; }
+.rv-view-meta .date {
+  margin-left: auto; font-size: 12.5px; color: var(--text-faint); font-variant-numeric: tabular-nums;
+}
 .rv-view-title { font-size: 17px; color: var(--text); margin: 0 0 8px; }
 .rv-view-hint { margin: 18px 0 8px; font-size: 12.5px; color: var(--text-faint); }
 

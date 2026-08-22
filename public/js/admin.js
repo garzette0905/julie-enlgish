@@ -16,7 +16,7 @@ const TABS = [
   { key: "notify", label: "학부모 알림" },
   { key: "tuition", label: "원비관리" },
   { key: "classes", label: "클래스 관리" },
-  { key: "media", label: "학원 소식" },
+  { key: "media", label: "학원 소식·사진" },
   { key: "alumni", label: "졸업생 관리" },
   { key: "settings", label: "사이트 설정" },
 ];
@@ -1436,6 +1436,8 @@ const SETTING_FIELDS = [
   ["mobile", "휴대폰", "010-3323-9439"],
   ["email", "이메일", "garzetta@hanmail.net"],
   ["address", "위치", "초당마을 삼부르네상스아파트 상가동 204호"],
+  // 비워 두면 도로명 주소(동백1로 8, 상가동 204호)로 네이버 지도를 연다.
+  ["map_url", "위치 옆 \"지도보기\" 링크", "비워 두면 기본 지도가 열립니다"],
   // 카카오 채널 자리는 "상담신청 · 문의" 화면이 대신한다.
   ["verify_naver", "네이버 서치어드바이저 소유확인 코드", "메타태그의 content 값만 붙여넣기"],
   ["verify_google", "구글 서치콘솔 소유확인 코드", "메타태그의 content 값만 붙여넣기"],
@@ -1465,7 +1467,8 @@ async function adminSettings(body) {
         ).join("")}
         <div class="hint" style="margin-bottom:14px">
           배너를 비워 두면 홈 화면에서 배너 줄이 사라집니다.
-          배너 문구를 바꾸면 <b style="color:var(--red)">14일 동안 NEW 표시</b>가 붙습니다.
+          배너 문구를 바꾸면 <b style="color:var(--red)">14일 동안 NEW 표시</b>가 붙고,
+          옆에 올린 날짜가 함께 보입니다.
           <br>소유확인 코드는 <b>content=" "</b> 안의 값만 넣으세요 (태그 전체를 넣지 않습니다).
           ${bannerNewNote(updated.notice_banner)}
         </div>

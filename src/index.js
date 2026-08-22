@@ -365,6 +365,8 @@ async function route(request, env, url) {
       if (method === "GET") return adminListMedia(env);
       if (method === "POST") return createMedia(request, env);
     }
+    // 끌어서 바꾼 순서를 한 번에 저장한다. id 를 받는 갈래보다 먼저 걸러야 한다.
+    if (b === "media" && c === "reorder" && method === "PUT") return reorderMedia(request, env);
     if (b === "media" && c) {
       if (method === "PATCH") return updateMedia(request, env, c);
       if (method === "DELETE") return deleteMedia(env, c);
@@ -1147,6 +1149,26 @@ async function adminListMedia(env) {
   return json({ media: results || [] });
 }
 
+/** 새 항목이 들어갈 자리 — 지금 목록의 맨 뒤. */
+async function nextMediaSort(env) {
+  const row = await env.DB.prepare(`SELECT MAX(sort_order) AS m FROM media`).first();
+  const max = row && row.m !== null && row.m !== undefined ? Number(row.m) : -1;
+  return (Number.isFinite(max) ? max : -1) + 1;
+}
+
+/** 끌어서 바꾼 순서를 받아 0, 1, 2 … 로 다시 매긴다. */
+async function reorderMedia(request, env) {
+  const b = await readJson(request);
+  const ids = (Array.isArray(b.ids) ? b.ids : []).map(Number).filter(Number.isInteger);
+  if (!ids.length) throw bad("바뀐 순서를 받지 못했습니다.");
+  await env.DB.batch(
+    ids.map((id, i) =>
+      env.DB.prepare(`UPDATE media SET sort_order = ?1 WHERE id = ?2`).bind(i, id)
+    )
+  );
+  return json({ ok: true, saved: ids.length });
+}
+
 async function createMedia(request, env) {
   const type = request.headers.get("content-type") || "";
 
@@ -1158,7 +1180,13 @@ async function createMedia(request, env) {
     const res = await env.DB.prepare(
       `INSERT INTO media (kind, title, description, url, sort_order) VALUES (?1, ?2, ?3, ?4, ?5)`
     )
-      .bind(norm(b.kind) || "youtube", norm(b.title), norm(b.description), url, Number(b.sort_order) || 0)
+      .bind(
+        norm(b.kind) || "youtube",
+        norm(b.title),
+        norm(b.description),
+        url,
+        b.sort_order !== undefined ? Number(b.sort_order) || 0 : await nextMediaSort(env)
+      )
       .run();
     return json({ ok: true, id: res.meta.last_row_id });
   }
@@ -1189,7 +1217,9 @@ async function createMedia(request, env) {
       key,
       mime,
       file.size,
-      Number(form.get("sort_order")) || 0
+      form.get("sort_order") !== null
+        ? Number(form.get("sort_order")) || 0
+        : await nextMediaSort(env)
     )
     .run();
 

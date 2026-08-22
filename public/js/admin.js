@@ -285,7 +285,8 @@ function drawStudentTable(table, users, reload) {
   }
   table.innerHTML = `
     <thead><tr>
-      <th>이름</th><th>아이디</th><th>학교 / 학년 / 반</th><th>학부모 연락처</th>
+      <th>이름</th><th>아이디</th><th>학교 / 학년 / 반</th>
+      <th>학생 연락처</th><th>학부모 연락처</th><th>이메일</th>
       <th>클래스</th><th>상태</th><th>상담</th><th></th>
     </tr></thead>
     <tbody>${users
@@ -294,7 +295,9 @@ function drawStudentTable(table, users, reload) {
           <td><b>${esc(u.name)}</b>${u.role === "admin" ? ` <span class="badge red">관리자</span>` : ""}</td>
           <td style="color:var(--text-muted)">${esc(u.login_id)}</td>
           <td>${esc([u.school, u.grade, u.class_no].filter(Boolean).join(" / ")) || "-"}</td>
-          <td style="color:var(--text-muted)">${esc(u.parent_phone || "-")}</td>
+          <td class="nowrap" style="color:var(--text-muted)">${esc(u.phone || "-")}</td>
+          <td class="nowrap" style="color:var(--text-muted)">${esc(u.parent_phone || "-")}</td>
+          <td style="color:var(--text-muted)">${esc(u.email || "-")}</td>
           <td>${esc(u.class_names || "-")}</td>
           <td><span class="badge ${STATUS_BADGE[u.status] || "gray"}">${esc(STATUS_KR[u.status] || u.status)}</span></td>
           <td>${u.counsel_count ? `<span class="badge">${u.counsel_count}건</span>` : "-"}</td>
@@ -1086,6 +1089,7 @@ async function adminMedia(body) {
     <div class="admin-toolbar">
       <div class="grow" style="font-size:14px;color:var(--text-muted)">
         사진·짧은 영상은 파일로 올리고(95MB 이하), 긴 영상은 유튜브 링크로 등록하세요.
+        <br>순서는 카드 왼쪽 위 <b>⠹</b> 를 잡고 끌어서 바꿉니다. 새로 올린 것은 맨 뒤에 붙습니다.
       </div>
       <button class="btn ghost" type="button" id="md-link">＋ 유튜브 링크</button>
       <button class="btn red" type="button" id="md-upload">＋ 파일 올리기</button>
@@ -1116,6 +1120,7 @@ async function adminMedia(body) {
             frame = `<div class="frame"><img src="${esc(src)}" alt="" loading="lazy"></div>`;
           }
           return `<div class="media-item" data-id="${m.id}">
+            <button type="button" class="md-grip" title="끌어서 순서 바꾸기" aria-label="끌어서 순서 바꾸기">⠹</button>
             ${frame}
             <div class="cap">
               <b>${esc(m.title || "(제목 없음)")}</b>
@@ -1128,6 +1133,8 @@ async function adminMedia(body) {
           </div>`;
         })
         .join("")}</div>`;
+
+      enableMediaDrag($(".media-grid", root));
 
       for (const card of $$(".media-item[data-id]", root)) {
         const m = media.find((x) => String(x.id) === card.dataset.id);
@@ -1155,6 +1162,76 @@ async function adminMedia(body) {
   await load();
 }
 
+/**
+ * 카드를 끌어서 순서를 바꾼다.
+ *
+ * HTML5 drag&drop 은 휴대폰·태블릿에서 아예 동작하지 않아서, 마우스와 손가락을
+ * 같이 다루는 pointer 이벤트로 직접 옮긴다. 손잡이(⠹)를 잡았을 때만 움직이므로
+ * 카드 안의 수정·삭제 버튼은 그대로 눌린다.
+ *
+ * 놓는 순간 화면은 이미 바뀐 순서이므로 다시 그리지 않고, 새 순서만 서버에 보낸다.
+ */
+function enableMediaDrag(grid) {
+  if (!grid) return;
+
+  const order = () => $$(".media-item[data-id]", grid).map((c) => Number(c.dataset.id));
+  let card = null;
+  let before = null; // 끌기 전 순서 — 제자리에 놓으면 저장하지 않는다
+
+  grid.addEventListener("pointerdown", (e) => {
+    const grip = e.target.closest(".md-grip");
+    if (!grip || !grid.contains(grip)) return;
+    card = grip.closest(".media-item");
+    if (!card) return;
+    before = order().join(",");
+    // 손잡이가 아니라 격자를 붙잡는다. 카드는 끌리는 동안 자리를 옮겨 다니는데,
+    // 움직이는 element 에 붙은 붙잡기는 브라우저마다 도중에 풀려 버린다.
+    // 붙잡기에 실패해도 격자에 걸어 둔 pointermove 는 그대로 들어오므로 계속 간다.
+    try {
+      grid.setPointerCapture(e.pointerId);
+    } catch {
+      /* 붙잡을 수 없는 포인터면 그냥 둔다 */
+    }
+    card.classList.add("dragging");
+    e.preventDefault();
+  });
+
+  grid.addEventListener("pointermove", (e) => {
+    if (!card) return;
+    e.preventDefault();
+    // 끌고 있는 카드는 pointer-events 를 껐으므로, 아래에 깔린 카드가 잡힌다.
+    const under = document.elementFromPoint(e.clientX, e.clientY);
+    const over = under && under.closest ? under.closest(".media-item[data-id]") : null;
+    if (!over || over === card || !grid.contains(over)) return;
+    const r = over.getBoundingClientRect();
+    // 지나는 카드의 가운데를 넘었으면 그 뒤, 아니면 그 앞에 끼워 넣는다.
+    const after = e.clientX - r.left > r.width / 2;
+    over.insertAdjacentElement(after ? "afterend" : "beforebegin", card);
+  });
+
+  const drop = async (e) => {
+    if (!card) return;
+    card.classList.remove("dragging");
+    card = null;
+    try {
+      grid.releasePointerCapture(e.pointerId);
+    } catch {
+      /* 이미 풀렸으면 그대로 둔다 */
+    }
+
+    const ids = order();
+    if (ids.join(",") === before) return; // 제자리에 놓았다
+    try {
+      await apiPut("admin/media/reorder", { ids });
+      toast("순서를 저장했습니다.");
+    } catch (err) {
+      toast(err.message, true);
+    }
+  };
+  grid.addEventListener("pointerup", drop);
+  grid.addEventListener("pointercancel", drop);
+}
+
 function openUploadModal(reload) {
   const form = html(`<form novalidate>
     <div class="field">
@@ -1166,8 +1243,7 @@ function openUploadModal(reload) {
       <input name="title" type="text"></div>
     <div class="field"><label>설명</label>
       <input name="description" type="text" placeholder="2026년 봄학기 수업 모습"></div>
-    <div class="field"><label>정렬 순서 (숫자가 작을수록 앞)</label>
-      <input name="sort_order" type="number" value="0"></div>
+    <div class="hint">올린 항목은 목록 맨 뒤에 붙습니다. 순서는 목록에서 끌어서 바꾸세요.</div>
     <div id="up-progress" class="hint"></div>
   </form>`);
 
@@ -1196,7 +1272,7 @@ function openUploadModal(reload) {
             // 여러 개를 한 번에 올릴 때는 각 파일 이름을 제목으로 둔다.
             fd.append("title", files.length === 1 && d.title ? d.title : f.name);
             if (d.description) fd.append("description", d.description);
-            fd.append("sort_order", d.sort_order || "0");
+            // 정렬 순서는 보내지 않는다 — 서버가 목록 맨 뒤에 붙여 준다.
             try {
               await api("admin/media", { method: "POST", body: fd });
               done++;
@@ -1223,7 +1299,7 @@ function openYoutubeModal(reload) {
     </div>
     <div class="field"><label>제목</label><input name="title" type="text"></div>
     <div class="field"><label>설명</label><input name="description" type="text"></div>
-    <div class="field"><label>정렬 순서</label><input name="sort_order" type="number" value="0"></div>
+    <div class="hint">등록한 항목은 목록 맨 뒤에 붙습니다. 순서는 목록에서 끌어서 바꾸세요.</div>
   </form>`);
 
   const modal = openModal({
@@ -1245,7 +1321,6 @@ function openYoutubeModal(reload) {
               url: d.url.trim(),
               title: d.title,
               description: d.description,
-              sort_order: Number(d.sort_order) || 0,
             });
             toast("등록했습니다.");
             modal.close();
@@ -1264,7 +1339,6 @@ function openMediaEdit(m, reload) {
   const form = html(`<form novalidate>
     <div class="field"><label>제목</label><input name="title" type="text" value="${esc(m.title || "")}"></div>
     <div class="field"><label>설명</label><input name="description" type="text" value="${esc(m.description || "")}"></div>
-    <div class="field"><label>정렬 순서</label><input name="sort_order" type="number" value="${esc(m.sort_order || 0)}"></div>
     ${m.kind === "youtube" ? `<div class="field"><label>유튜브 주소</label><input name="url" type="text" value="${esc(m.url || "")}"></div>` : ""}
   </form>`);
 
@@ -1283,7 +1357,6 @@ function openMediaEdit(m, reload) {
             await apiPatch(`admin/media/${m.id}`, {
               title: d.title,
               description: d.description,
-              sort_order: Number(d.sort_order) || 0,
               ...(d.url !== undefined ? { url: d.url } : {}),
             });
             toast("저장했습니다.");

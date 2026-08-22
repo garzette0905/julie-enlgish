@@ -409,6 +409,21 @@ table.data td.actions .btn { margin-left: 5px; }
   .new-badge { animation: none; }
 }
 
+/* 배너 아래 오른쪽 QR — 휴대폰으로 옮겨 가라는 안내.
+   휴대폰에서는 이미 그 화면이라 감춘다. */
+.qr-row { display: flex; justify-content: flex-end; padding-top: 14px; margin-bottom: -10px; }
+.qr-box {
+  display: flex; align-items: center; gap: 9px;
+  background: #fff; border: 1px solid var(--border); border-radius: 12px;
+  padding: 8px 12px 8px 8px; box-shadow: var(--shadow-sm);
+}
+.qr-box img { width: 62px; height: 62px; display: block; }
+.qr-box span {
+  font-size: 11.5px; font-weight: 600; color: var(--text-muted);
+  line-height: 1.35; letter-spacing: -0.02em; white-space: nowrap;
+}
+@media (max-width: 760px) { .qr-row { display: none; } }
+
 /* 특징 카드 */
 .feature-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(238px, 1fr)); gap: 16px; }
 .feature {
@@ -462,17 +477,6 @@ table.data td.actions .btn { margin-left: 5px; }
 .course h3 { font-size: 20px; margin-bottom: 8px; }
 .course p { margin: 0; font-size: 14.5px; color: rgba(255, 255, 255, 0.88); }
 
-/* 실적 하이라이트 */
-.achieve {
-  display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px;
-}
-.achieve .item {
-  background: #fff; border: 2px solid var(--navy); border-radius: var(--radius);
-  padding: 22px; text-align: center;
-}
-.achieve .item .big { font-size: 26px; font-weight: 800; color: var(--red); letter-spacing: -0.03em; }
-.achieve .item .lbl { font-size: 14px; color: var(--text-muted); margin-top: 4px; }
-
 /* 제목 아래 괄호로 붙는 보조 문구 (합격 학교 나열 등) */
 .h2-sub {
   display: inline-block; margin-top: 6px;
@@ -508,6 +512,49 @@ table.data td.actions .btn { margin-left: 5px; }
 
 .footer-contact .footer-cta { color: #fff; font-weight: 600; }
 .footer-contact .footer-cta:hover { text-decoration: underline; }
+
+/* ============================================================
+   졸업생 카드 (홈 Result 섹션)
+   ============================================================ */
+.alumni-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 15px; }
+.alumni-card {
+  background: #fff; border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 20px; box-shadow: var(--shadow-sm); position: relative; overflow: hidden;
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+.alumni-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-md); }
+.alumni-card::before {
+  content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 5px;
+  background: linear-gradient(180deg, var(--red), var(--navy));
+}
+.alumni-card .yr { font-size: 11.5px; font-weight: 700; color: var(--red); letter-spacing: 0.04em; }
+.alumni-card .nm { font-size: 21px; font-weight: 800; color: var(--navy); letter-spacing: -0.02em; margin: 2px 0 6px; }
+.alumni-card .dest { font-size: 15px; font-weight: 600; color: var(--text); }
+.alumni-card .yrs { font-size: 13px; color: var(--text-muted); margin-top: 5px; }
+.alumni-card .note { font-size: 13px; color: var(--text-faint); margin-top: 7px; }
+
+/* ============================================================
+   수업 한 줄 (나의 수업)
+   ============================================================ */
+.slot {
+  display: flex; gap: 14px; align-items: stretch;
+  background: #fff; border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 14px 16px; margin-bottom: 10px; box-shadow: var(--shadow-sm);
+}
+.slot .time {
+  flex: none; width: 112px; font-variant-numeric: tabular-nums;
+  font-size: 15px; font-weight: 700; color: var(--navy); line-height: 1.35;
+}
+.slot .time small { display: block; font-size: 11.5px; font-weight: 600; color: var(--text-faint); }
+.slot .bar { flex: none; width: 4px; border-radius: 3px; background: var(--navy); }
+.slot .body { flex: 1; min-width: 0; }
+.slot .body .nm { font-size: 15.5px; font-weight: 700; color: var(--text); }
+.slot .body .meta { font-size: 13px; color: var(--text-muted); margin-top: 2px; }
+
+@media (max-width: 520px) {
+  .slot { padding: 12px; gap: 10px; }
+  .slot .time { width: 84px; font-size: 14px; }
+}
 
 /* ============================================================
    졸업생 · 학부모 후기
@@ -713,6 +760,48 @@ table.data td.actions .btn { margin-left: 5px; }
 }
 .admin-toolbar .grow { flex: 1; min-width: 160px; }
 .admin-toolbar input, .admin-toolbar select { padding: 9px 12px; font-size: 14px; }
+
+/* ---------- 원생 알림 ---------- */
+.nt-group { margin-bottom: 12px; overflow: hidden; }
+.nt-head { border-left: 4px solid var(--navy); background: var(--bg-soft); padding: 12px 16px; }
+.nt-head-check { display: flex; align-items: flex-start; gap: 10px; cursor: pointer; margin: 0; }
+.nt-head-check input { width: auto; margin: 3px 0 0; flex: none; }
+.nt-head-check b { font-size: 15.5px; color: var(--navy); }
+.nt-head-check i {
+  display: block; font-style: normal; font-size: 12.5px; color: var(--text-muted); margin-top: 2px;
+}
+
+.nt-students {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 2px 10px; padding: 10px 16px 14px;
+}
+.nt-student {
+  display: flex; align-items: center; gap: 8px; padding: 7px 8px; border-radius: 8px;
+  cursor: pointer; font-size: 14px; margin: 0;
+}
+.nt-student:hover { background: var(--bg-tint); }
+.nt-student input { width: auto; margin: 0; flex: none; }
+.nt-student .nm { font-weight: 600; color: var(--text); }
+.nt-student .sub { font-size: 12.5px; color: var(--text-faint); }
+
+.nt-compose { margin-top: 18px; }
+.nt-send { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.nt-send .hint { margin: 0; }
+
+.tu-notify-line { display: flex; align-items: center; gap: 9px; cursor: pointer; font-size: 14.5px; }
+.tu-notify-line input { width: auto; margin: 0; }
+
+/* 원비 표의 좁은 입력칸 */
+table.data .tu-amount, table.data .tu-memo {
+  padding: 7px 9px; font-size: 13.5px; border-radius: 8px;
+}
+table.data .tu-amount { text-align: right; font-variant-numeric: tabular-nums; }
+table.data .tu-paid, table.data .tu-pick { width: auto; margin: 0; }
+#tu-table { min-width: 860px; }
+
+@media (max-width: 520px) {
+  .nt-students { grid-template-columns: 1fr; }
+}
 
 /* 모달 */
 .modal-bg {

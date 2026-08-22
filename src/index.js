@@ -154,6 +154,15 @@ async function route(request, env, url) {
       if (method === "DELETE") return del(env, "alumni", c);
     }
 
+    // 원생 알림 — 클래스별로 묶은 원생 명단
+    if (b === "roster" && !c && method === "GET") return adminRoster(env);
+
+    // 원비 관리
+    if (b === "tuition" && !c) {
+      if (method === "GET") return adminTuition(env, url);
+      if (method === "PUT") return adminSaveTuition(request, env);
+    }
+
     // 상담신청 · 문의
     if (b === "inquiries" && !c && method === "GET") return adminListInquiries(env, url);
     if (b === "inquiries" && c) {
@@ -1139,7 +1148,8 @@ async function createReview(request, env) {
     .run();
 
   const id = res.meta.last_row_id;
-  await saveReviewPhotos(env, form, id);
+  const photoCount = await saveReviewPhotos(env, form, id);
+  await notifyReview(env, "작성", { id, author_name: authorName, title, body, photoCount });
   return json({ ok: true, id });
 }
 
@@ -1188,6 +1198,7 @@ async function updateReview(request, env, id) {
     .first();
   await saveReviewPhotos(env, form, id, left ? left.n : 0);
 
+  await notifyReview(env, "수정", { id, author_name: row.author_name, title, body });
   return json({ ok: true });
 }
 
@@ -1213,7 +1224,31 @@ async function deleteReview(request, env, id) {
   }
 
   await env.DB.prepare(`DELETE FROM reviews WHERE id = ?1`).bind(id).run();
+  await notifyReview(env, "삭제", {
+    id, author_name: row.author_name, title: row.title, body: row.body,
+  });
   return json({ ok: true });
+}
+
+/**
+ * 후기에 변화가 생기면 원장님에게 알린다.
+ * 알림이 실패해도 글 작성/수정/삭제 자체는 이미 끝난 뒤이므로 그대로 둔다.
+ */
+async function notifyReview(env, action, r) {
+  const preview = String(r.body || "").slice(0, 200);
+  const lines = [
+    `<b>[쥴리 잉글리쉬] 후기 ${action}</b>`,
+    "",
+    `글쓴이: <b>${tgEsc(r.author_name)}</b>`,
+  ];
+  if (r.title) lines.push(`제목: ${tgEsc(r.title)}`);
+  if (preview) {
+    lines.push("", tgEsc(preview) + (String(r.body || "").length > 200 ? "…" : ""));
+  }
+  if (r.photoCount) lines.push("", `사진 ${r.photoCount}장`);
+  lines.push("", `글번호 #${r.id}`);
+
+  await sendTelegram(env, lines.join("\n"));
 }
 
 /* ============================================================
@@ -1307,37 +1342,21 @@ const tgEsc = (v) =>
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;");
 
-/** 새 접수를 원장님에게 바로 알린다. 실패해도 예외를 밖으로 던지지 않는다. */
-async function notifyNewInquiry(env, q) {
+/** 원장님 휴대폰으로 알림을 보낸다. 실패해도 예외를 밖으로 던지지 않는다. */
+async function sendTelegram(env, text) {
   const token = env.TELEGRAM_BOT_TOKEN;
   const chatId = env.TELEGRAM_CHAT_ID;
   if (!token || !chatId) {
     console.error("알림 설정이 없어 건너뜀 (TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID)");
     return false;
   }
-
-  const rows = [
-    ["학생 이름", q.student_name],
-    ["학교", q.school],
-    ["학년", q.grade],
-    ["영어 학습 수준", q.english_level],
-    ["학생 연락처", q.student_phone],
-    ["부모님 연락처", q.parent_phone],
-  ].filter(([, v]) => v);
-
-  const body =
-    `<b>[쥴리 잉글리쉬] 새 ${INQUIRY_KIND_KR[q.kind]}</b>\n\n` +
-    rows.map(([k, v]) => `${k}: <b>${tgEsc(v)}</b>`).join("\n") +
-    (q.message ? `\n\n${q.kind === "consult" ? "기타 의견" : "문의 내용"}:\n${tgEsc(q.message)}` : "") +
-    `\n\n접수번호 #${q.id}`;
-
   try {
     const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
         chat_id: chatId,
-        text: body,
+        text,
         parse_mode: "HTML",
         disable_web_page_preview: true,
       }),
@@ -1351,6 +1370,30 @@ async function notifyNewInquiry(env, q) {
     console.error("알림 전송 중 오류", e);
     return false;
   }
+}
+
+/** 새 상담신청/문의를 원장님에게 바로 알린다. */
+async function notifyNewInquiry(env, q) {
+  const rows = [
+    ["학생 이름", q.student_name],
+    ["학교", q.school],
+    ["학년", q.grade],
+    ["영어 학습 수준", q.english_level],
+    ["학생 연락처", q.student_phone],
+    ["부모님 연락처", q.parent_phone],
+  ].filter(([, v]) => v);
+
+  const lines = [
+    `<b>[쥴리 잉글리쉬] 새 ${INQUIRY_KIND_KR[q.kind]}</b>`,
+    "",
+    ...rows.map(([k, v]) => `${k}: <b>${tgEsc(v)}</b>`),
+  ];
+  if (q.message) {
+    lines.push("", `${q.kind === "consult" ? "기타 의견" : "문의 내용"}:`, tgEsc(q.message));
+  }
+  lines.push("", `접수번호 #${q.id}`);
+
+  return sendTelegram(env, lines.join("\n"));
 }
 
 async function adminListInquiries(env, url) {
@@ -1405,6 +1448,134 @@ async function adminUpdateInquiry(request, env, id) {
     .bind(...vals)
     .run();
   return json({ ok: true });
+}
+
+/* ============================================================
+   관리자 — 원생 알림 (클래스별 명단)
+   ============================================================ */
+
+/**
+ * 알림 보낼 대상을 고르기 쉽도록 원생을 클래스별로 묶어서 준다.
+ * 어느 클래스에도 연결되지 않은 원생은 맨 끝에 따로 모아 둔다.
+ */
+async function adminRoster(env) {
+  const cls = await env.DB.prepare(
+    `SELECT id, name, days, start_time, duration_min, level, color, active
+       FROM classes ORDER BY active DESC, start_time, name`
+  ).all();
+
+  const rows = await env.DB.prepare(
+    `SELECT u.id, u.name, u.school, u.grade, u.class_no, u.phone, u.status, e.class_id
+       FROM users u
+       LEFT JOIN enrollments e ON e.user_id = u.id
+      WHERE u.role != 'admin'
+      ORDER BY u.name`
+  ).all();
+
+  const byClass = {};
+  const seen = new Set();
+  const unassigned = [];
+
+  for (const r of rows.results || []) {
+    const student = {
+      id: r.id, name: r.name, school: r.school, grade: r.grade,
+      class_no: r.class_no, phone: r.phone, status: r.status,
+    };
+    if (r.class_id) {
+      (byClass[r.class_id] = byClass[r.class_id] || []).push(student);
+      seen.add(r.id);
+    }
+  }
+  // 한 명이 여러 클래스를 들으면 위에서 여러 줄로 나오므로, 미배정은 따로 걸러낸다.
+  for (const r of rows.results || []) {
+    if (!seen.has(r.id) && !unassigned.some((u) => u.id === r.id)) {
+      unassigned.push({
+        id: r.id, name: r.name, school: r.school, grade: r.grade,
+        class_no: r.class_no, phone: r.phone, status: r.status,
+      });
+    }
+  }
+
+  const classes = (cls.results || []).map((c) => ({ ...c, students: byClass[c.id] || [] }));
+  return json({ classes, unassigned });
+}
+
+/* ============================================================
+   관리자 — 원비 관리
+   ============================================================ */
+
+const MONTH_RE = /^\d{4}-\d{2}$/;
+
+/** ?month=YYYY-MM 한 달치. 원생 전체를 주고, 그 달 기록이 있으면 붙여 준다. */
+async function adminTuition(env, url) {
+  const month = norm(url.searchParams.get("month"));
+  if (!month || !MONTH_RE.test(month)) throw bad("조회할 달을 골라 주세요.");
+
+  const { results } = await env.DB.prepare(
+    `SELECT u.id, u.name, u.school, u.grade, u.class_no, u.phone, u.status,
+            (SELECT group_concat(c.name, ', ')
+               FROM enrollments e JOIN classes c ON c.id = e.class_id
+              WHERE e.user_id = u.id) AS class_names,
+            t.id AS tuition_id, t.amount, t.paid, t.paid_at, t.memo
+       FROM users u
+       LEFT JOIN tuition t ON t.user_id = u.id AND t.month = ?1
+      WHERE u.role != 'admin'
+      ORDER BY u.name`
+  )
+    .bind(month)
+    .all();
+
+  const students = (results || []).map((r) => ({
+    ...r,
+    amount: r.amount === null || r.amount === undefined ? null : Number(r.amount),
+    paid: !!r.paid,
+  }));
+
+  const total = students.reduce((sum, s) => sum + (s.amount || 0), 0);
+  const paidTotal = students.reduce((sum, s) => sum + (s.paid ? s.amount || 0 : 0), 0);
+  const unpaid = students.filter((s) => (s.amount || 0) > 0 && !s.paid).length;
+
+  return json({ month, students, summary: { total, paidTotal, unpaid, count: students.length } });
+}
+
+/** 바뀐 줄만 골라서 한 번에 저장한다. */
+async function adminSaveTuition(request, env) {
+  const b = await readJson(request);
+  const month = norm(b.month);
+  if (!month || !MONTH_RE.test(month)) throw bad("저장할 달이 올바르지 않습니다.");
+
+  const rows = Array.isArray(b.rows) ? b.rows : [];
+  let saved = 0;
+
+  for (const r of rows) {
+    const userId = Number(r.user_id);
+    if (!userId) continue;
+
+    const amount = Math.max(0, Math.round(Number(r.amount) || 0));
+    const paid = r.paid ? 1 : 0;
+    const memo = norm(r.memo);
+
+    await env.DB.prepare(
+      `INSERT INTO tuition (user_id, month, amount, paid, paid_at, memo)
+       VALUES (?1, ?2, ?3, ?4, CASE WHEN ?4 = 1 THEN datetime('now') ELSE NULL END, ?5)
+       ON CONFLICT(user_id, month) DO UPDATE SET
+         amount = excluded.amount,
+         -- 미납 -> 납부로 바뀌는 순간에만 납부 시각을 새로 찍는다
+         paid_at = CASE
+                     WHEN excluded.paid = 1 AND tuition.paid = 0 THEN datetime('now')
+                     WHEN excluded.paid = 0 THEN NULL
+                     ELSE tuition.paid_at
+                   END,
+         paid = excluded.paid,
+         memo = excluded.memo,
+         updated_at = datetime('now')`
+    )
+      .bind(userId, month, amount, paid, memo)
+      .run();
+    saved++;
+  }
+
+  return json({ ok: true, saved });
 }
 
 /* ============================================================

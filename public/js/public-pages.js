@@ -80,6 +80,15 @@ export async function renderHome(view) {
     </div>`));
   }
 
+  // PC 로 보는 중이면 휴대폰으로 옮겨 갈 수 있게 QR 을 오른쪽에 작게 둔다.
+  // (이미 휴대폰으로 보고 있다면 쓸모가 없어 CSS 에서 감춘다)
+  view.append(html(`<div class="wrap qr-row">
+    <div class="qr-box">
+      <img src="/assets/qr-site.png" alt="www.julieenglish.co.kr 접속 QR 코드" width="72" height="72">
+      <span>휴대폰으로<br>보기</span>
+    </div>
+  </div>`));
+
   view.append(html(`
     <section class="section">
       <div class="wrap">
@@ -179,21 +188,6 @@ export async function renderHome(view) {
           <span class="eyebrow">Result</span>
           <h2>매년 명문고, 명문대 합격생 배출<br><span class="h2-sub">(동탄국제고, 화성고, 계원예고, 북일고, 세마고 등)</span></h2>
         </div>
-        <div class="achieve">
-          <div class="item">
-            <div class="big">고려대 사범대</div>
-            <div class="lbl">2026학년도 대입 합격 &middot; 김 O 수</div>
-          </div>
-          <div class="item">
-            <div class="big">43%</div>
-            <div class="lbl">2025년 초·중1 기말 내신대비 재원생 백점 만점 비율</div>
-          </div>
-          <div class="item">
-            <div class="big">5~9년</div>
-            <div class="lbl">명문고·명문대 합격생의 평균 수강 기간</div>
-          </div>
-        </div>
-
         <h3 class="sub-head">졸업생 소개</h3>
         <p class="sub-lead">최소 5년에서 최대 9년까지 꾸준히 함께한 학생들이 만들어낸 결과입니다.</p>
         <div class="alumni-grid" id="home-alumni"><div class="loading">불러오는 중…</div></div>

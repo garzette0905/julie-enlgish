@@ -13,6 +13,8 @@ import { clearCache, mediaSrc, youtubeId } from "./public-pages.js";
 const TABS = [
   { key: "inquiries", label: "상담 요청" },
   { key: "students", label: "학원생 관리" },
+  { key: "notify", label: "원생 알림" },
+  { key: "tuition", label: "원비관리" },
   { key: "classes", label: "클래스 관리" },
   { key: "media", label: "학원 소식" },
   { key: "alumni", label: "졸업생 관리" },
@@ -51,6 +53,8 @@ export async function renderAdmin(view, tab = "inquiries") {
   const renderers = {
     inquiries: adminInquiries,
     students: adminStudents,
+    notify: adminNotify,
+    tuition: adminTuitionScreen,
     classes: adminClasses,
     media: adminMedia,
     alumni: adminAlumni,
@@ -584,6 +588,244 @@ async function openCounselModal(user) {
       toast(err.message, true);
     } finally {
       btn.disabled = false;
+    }
+  });
+
+  await load();
+}
+
+/* ============================================================
+   원생 알림 — 클래스별로 원생을 골라 알림 내용을 적는다
+   (발송은 아직 준비 중이라 버튼을 눌러지지 않게 두었다)
+   ============================================================ */
+
+async function adminNotify(body) {
+  body.innerHTML = `
+    <div class="admin-toolbar">
+      <div class="grow" style="font-size:14px;color:var(--text-muted)">
+        클래스별로 묶인 원생 명단입니다. 알림을 보낼 학생을 골라 주세요.
+      </div>
+      <span class="badge" id="nt-count">0명 선택</span>
+    </div>
+    <div id="nt-root"><div class="loading">불러오는 중…</div></div>`;
+
+  const root = $("#nt-root", body);
+
+  try {
+    const { classes, unassigned } = await apiGet("admin/roster");
+
+    const groups = [
+      ...classes.map((c) => ({
+        key: `class-${c.id}`,
+        title: c.name,
+        meta: `${daysToKr(c.days)} · ${timeRange(c.start_time, c.duration_min)}${c.level ? " · " + c.level : ""}`,
+        color: c.color || "#0C3190",
+        off: !c.active,
+        students: c.students,
+      })),
+      {
+        key: "none",
+        title: "클래스 미배정",
+        meta: "아직 어느 클래스에도 연결되지 않은 원생",
+        color: "#8b95a8",
+        students: unassigned,
+      },
+    ].filter((g) => g.students.length);
+
+    if (!groups.length) {
+      root.innerHTML = `<div class="empty">등록된 원생이 없습니다.</div>`;
+      return;
+    }
+
+    root.innerHTML =
+      groups.map(rosterGroup).join("") +
+      `<div class="card pad nt-compose">
+        <div class="field">
+          <label>알림 내용</label>
+          <textarea id="nt-msg" placeholder="예) 이번 주 금요일은 학원 사정으로 휴강입니다." style="min-height:120px"></textarea>
+          <div class="hint"><span id="nt-len">0</span>자</div>
+        </div>
+        <div class="nt-send">
+          <button class="btn red" type="button" id="nt-send" disabled>발송 (개발중)</button>
+          <span class="hint">발송 기능은 준비 중입니다. 지금은 대상 선택과 내용 작성까지만 됩니다.</span>
+        </div>
+      </div>`;
+
+    const countEl = $("#nt-count", body);
+    const refreshCount = () => {
+      const n = $$("#nt-root .nt-student input:checked", body).length;
+      countEl.textContent = `${n}명 선택`;
+      countEl.classList.toggle("red", n > 0);
+    };
+
+    // 클래스 제목 옆 체크는 그 반 전체를 한 번에 켜고 끈다.
+    for (const head of $$(".nt-all", root)) {
+      head.addEventListener("change", () => {
+        const group = head.closest(".nt-group");
+        for (const cb of $$(".nt-student input", group)) cb.checked = head.checked;
+        refreshCount();
+      });
+    }
+    for (const cb of $$(".nt-student input", root)) {
+      cb.addEventListener("change", () => {
+        const group = cb.closest(".nt-group");
+        const all = $$(".nt-student input", group);
+        $(".nt-all", group).checked = all.every((x) => x.checked);
+        refreshCount();
+      });
+    }
+
+    const msg = $("#nt-msg", root);
+    msg.addEventListener("input", () => {
+      $("#nt-len", root).textContent = String(msg.value.length);
+    });
+
+    refreshCount();
+  } catch (e) {
+    root.innerHTML = `<div class="empty">${esc(e.message)}</div>`;
+  }
+}
+
+function rosterGroup(g) {
+  return `<div class="card nt-group" data-key="${esc(g.key)}">
+    <div class="nt-head" style="border-left-color:${esc(g.color)}">
+      <label class="nt-head-check">
+        <input type="checkbox" class="nt-all">
+        <span>
+          <b>${esc(g.title)}</b>${g.off ? ` <span class="badge gray">종료</span>` : ""}
+          <i>${esc(g.meta)} · ${g.students.length}명</i>
+        </span>
+      </label>
+    </div>
+    <div class="nt-students">
+      ${g.students
+        .map(
+          (s) => `<label class="nt-student">
+            <input type="checkbox" value="${s.id}">
+            <span class="nm">${esc(s.name)}</span>
+            <span class="sub">${esc([s.school, s.grade].filter(Boolean).join(" ")) || "-"}</span>
+            ${s.status !== "active" ? `<span class="badge ${STATUS_BADGE[s.status] || "gray"}">${esc(STATUS_KR[s.status] || s.status)}</span>` : ""}
+          </label>`
+        )
+        .join("")}
+    </div>
+  </div>`;
+}
+
+/* ============================================================
+   원비 관리 — 월별 금액 · 납부 여부 · 특기사항
+   ============================================================ */
+
+const won = (n) => (Number(n) || 0).toLocaleString("ko-KR");
+
+async function adminTuitionScreen(body) {
+  const now = new Date();
+  const thisMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+
+  body.innerHTML = `
+    <div class="admin-toolbar">
+      <input type="month" id="tu-month" value="${thisMonth}" style="max-width:170px">
+      <div class="grow" id="tu-summary" style="font-size:14px;color:var(--text-muted)"></div>
+      <button class="btn" type="button" id="tu-save">저장</button>
+    </div>
+    <div class="card"><div class="table-scroll"><table class="data" id="tu-table"></table></div></div>
+    <div class="card pad nt-compose" style="margin-top:14px">
+      <label class="tu-notify-line">
+        <input type="checkbox" id="tu-notify-on">
+        <span>원비 미납 학생에게 알림 보내기</span>
+      </label>
+      <div class="hint" id="tu-notify-hint" style="margin:6px 0 12px"></div>
+      <div class="nt-send">
+        <button class="btn red" type="button" id="tu-send" disabled>미납 알림 발송 (개발중)</button>
+        <span class="hint">발송 기능은 준비 중입니다.</span>
+      </div>
+    </div>`;
+
+  const monthEl = $("#tu-month", body);
+  const table = $("#tu-table", body);
+
+  const load = async () => {
+    table.innerHTML = `<tbody><tr><td class="loading">불러오는 중…</td></tr></tbody>`;
+    try {
+      const { students, summary } = await apiGet(`admin/tuition?month=${monthEl.value}`);
+
+      $("#tu-summary", body).innerHTML =
+        `원생 ${summary.count}명 · 청구 <b>${won(summary.total)}원</b> · ` +
+        `수납 <b style="color:#1f7a4b">${won(summary.paidTotal)}원</b> · ` +
+        `미납 <b style="color:var(--red)">${summary.unpaid}명</b>`;
+
+      if (!students.length) {
+        table.innerHTML = `<tbody><tr><td class="empty">등록된 원생이 없습니다.</td></tr></tbody>`;
+        return;
+      }
+
+      table.innerHTML = `
+        <thead><tr>
+          <th>이름</th><th>학교 / 학년</th><th>클래스</th>
+          <th style="width:130px">원비(원)</th><th style="width:70px">납부</th>
+          <th>특기사항</th><th style="width:70px">알림</th>
+        </tr></thead>
+        <tbody>${students
+          .map(
+            (s) => `<tr data-uid="${s.id}">
+              <td><b>${esc(s.name)}</b></td>
+              <td>${esc([s.school, s.grade].filter(Boolean).join(" / ")) || "-"}</td>
+              <td style="color:var(--text-muted)">${esc(s.class_names || "-")}</td>
+              <td><input class="tu-amount" type="number" min="0" step="1000" inputmode="numeric"
+                         value="${s.amount === null ? "" : s.amount}" placeholder="0"></td>
+              <td style="text-align:center">
+                <input class="tu-paid" type="checkbox" ${s.paid ? "checked" : ""}>
+              </td>
+              <td><input class="tu-memo" type="text" value="${esc(s.memo || "")}" placeholder="형제 할인 등"></td>
+              <td style="text-align:center">
+                <input class="tu-pick" type="checkbox" ${!s.paid && (s.amount || 0) > 0 ? "checked" : ""}>
+              </td>
+            </tr>`
+          )
+          .join("")}</tbody>`;
+
+      const syncNotifyHint = () => {
+        const picked = $$(".tu-pick:checked", table).length;
+        $("#tu-notify-hint", body).textContent = `미납 알림 대상 ${picked}명이 선택되어 있습니다.`;
+      };
+      for (const cb of $$(".tu-pick", table)) cb.addEventListener("change", syncNotifyHint);
+      // 납부로 체크하면 미납 알림 대상에서 자동으로 빠진다.
+      for (const cb of $$(".tu-paid", table)) {
+        cb.addEventListener("change", () => {
+          const row = cb.closest("tr");
+          if (cb.checked) $(".tu-pick", row).checked = false;
+          syncNotifyHint();
+        });
+      }
+      syncNotifyHint();
+    } catch (e) {
+      table.innerHTML = `<tbody><tr><td class="empty">${esc(e.message)}</td></tr></tbody>`;
+    }
+  };
+
+  monthEl.addEventListener("change", load);
+
+  $("#tu-save", body).addEventListener("click", async (e) => {
+    const btn = e.currentTarget;
+    const rows = $$("tbody tr[data-uid]", table).map((tr) => ({
+      user_id: Number(tr.dataset.uid),
+      amount: Number($(".tu-amount", tr).value) || 0,
+      paid: $(".tu-paid", tr).checked,
+      memo: $(".tu-memo", tr).value,
+    }));
+    if (!rows.length) return;
+
+    btn.disabled = true;
+    btn.textContent = "저장 중…";
+    try {
+      const r = await apiPut("admin/tuition", { month: monthEl.value, rows });
+      toast(`${r.saved}명 저장했습니다.`);
+      load();
+    } catch (err) {
+      toast(err.message, true);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = "저장";
     }
   });
 

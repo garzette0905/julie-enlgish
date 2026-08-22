@@ -145,7 +145,8 @@ export async function renderHome(view) {
               <li>한국외국어대학교 학사 / 석사 졸업</li>
               <li>중고등 내신대비 지도 (청솔학원)</li>
               <li>캐나다 TESOL 수료</li>
-              <li>캐나다 영어 교사</li>
+              <li>캐나다 공립 초등학교 파닉스 수업지도</li>
+              <li>미국 공립도서관 이민자(히스패닉) 대상 회화지도</li>
               <li>영어유치원 · 어학원 16년 경력</li>
               <li class="hi">동백 Julie&rsquo;s English 19년차 (&rsquo;07년~)</li>
             </ul>
@@ -194,7 +195,7 @@ export async function renderHome(view) {
 
         <h3 class="sub-head" id="home-reviews">졸업생 · 학부모 후기</h3>
         <p class="sub-lead">쥴리 잉글리쉬와 함께한 학생·학부모님이 남겨 주신 이야기입니다.<br>
-          저희 원에서 졸업생은 정규선행 프로그램을 6~8년 이상 모두 마친 학생들을 의미합니다.</p>
+          저희 원에서 졸업생은 정규선행 프로그램을 6~8년 이상 모두 마치고 학원 차원에서 졸업을 시킨 학생들을 의미합니다.</p>
         <div class="rv-mini-grid" id="home-reviews-grid"><div class="loading">불러오는 중…</div></div>
         <div class="sub-more"><a class="btn ghost sm" href="/reviews">후기 전체 보기 · 후기 쓰기 &rarr;</a></div>
       </div>
@@ -207,7 +208,7 @@ export async function renderHome(view) {
         <div class="section-head">
           <span class="eyebrow">Contact</span>
           <h2>상담 문의</h2>
-          <p>전화로 바로 문의하시거나, 편한 시간에 온라인으로 상담신청을 남겨 주세요.</p>
+          <p>편한 시간에 온라인으로 상담 신청을 남겨 주세요. (전화로 문의하셔도 됩니다)</p>
         </div>
         <div class="contact-grid" id="home-contact"></div>
       </div>

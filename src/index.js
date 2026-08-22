@@ -82,7 +82,7 @@ const PAGES = {
       </ul>
       <h2>상담 문의</h2>
       <p>전화 031-8005-9439 · 휴대폰 010-3323-9439</p>
-      <p>위치: 경기도 용인시 기흥구 초당마을 삼부르네상스아파트 상가동 204호</p>`,
+      <p>위치: 경기도 용인시 기흥구 초당마을 삼부르네상스아파트 상가동 204호 (<a href="https://map.naver.com/p/search/%EC%9A%A9%EC%9D%B8%EC%8B%9C%20%EA%B8%B0%ED%9D%A5%EA%B5%AC%20%EB%8F%99%EB%B0%B11%EB%A1%9C%208" target="_blank" rel="noopener noreferrer">지도보기</a>)</p>`,
   },
 
   "/about": {
@@ -93,7 +93,7 @@ const PAGES = {
       <h1>학원 소식·사진</h1>
       <p>쥴리 잉글리쉬의 수업 모습과 학원 공간을 사진·영상으로 소개합니다.</p>
       <h2>찾아오시는 길</h2>
-      <p>경기도 용인시 기흥구 초당마을 삼부르네상스아파트 상가동 204호</p>
+      <p>경기도 용인시 기흥구 초당마을 삼부르네상스아파트 상가동 204호 (<a href="https://map.naver.com/p/search/%EC%9A%A9%EC%9D%B8%EC%8B%9C%20%EA%B8%B0%ED%9D%A5%EA%B5%AC%20%EB%8F%99%EB%B0%B11%EB%A1%9C%208" target="_blank" rel="noopener noreferrer">지도보기</a>)</p>
       <p>상담 문의 031-8005-9439</p>`,
   },
 
@@ -115,7 +115,7 @@ const PAGES = {
       <h1>상담신청 · 문의</h1>
       <p>남겨주신 연락처로 원장이 직접 연락드립니다.</p>
       <p>전화 031-8005-9439 · 휴대폰 010-3323-9439</p>
-      <p>위치: 경기도 용인시 기흥구 초당마을 삼부르네상스아파트 상가동 204호</p>`,
+      <p>위치: 경기도 용인시 기흥구 초당마을 삼부르네상스아파트 상가동 204호 (<a href="https://map.naver.com/p/search/%EC%9A%A9%EC%9D%B8%EC%8B%9C%20%EA%B8%B0%ED%9D%A5%EA%B5%AC%20%EB%8F%99%EB%B0%B11%EB%A1%9C%208" target="_blank" rel="noopener noreferrer">지도보기</a>)</p>`,
   },
 };
 

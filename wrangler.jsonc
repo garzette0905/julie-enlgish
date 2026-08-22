@@ -19,6 +19,11 @@
     { "pattern": "julieenglish.co.kr", "custom_domain": true }
   ],
 
+  // routes 를 지정하면 wrangler 가 workers.dev 주소를 자동으로 꺼 버린다.
+  // 예전에 공유한 julie-enlgish.wepiclab.workers.dev 링크가 갑자기 죽지 않도록
+  // 명시적으로 켜 둔다.
+  "workers_dev": true,
+
   "assets": {
     "directory": "./public",
     "binding": "ASSETS",

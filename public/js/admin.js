@@ -20,14 +20,13 @@ const TABS = [
 ];
 
 export async function renderAdmin(view, tab = "students") {
+  // 쿠키 만료로 화면 상태만 남아 있을 수 있으니 들어올 때마다 서버에 확인한다.
+  await refreshSession();
   if (!session.isAdmin) {
-    await refreshSession();
-    if (!session.isAdmin) {
-      view.innerHTML = `<div class="section"><div class="wrap">
-        <div class="empty">관리자만 볼 수 있는 화면입니다. <a href="#/login" style="color:var(--navy);font-weight:600">로그인</a></div>
-      </div></div>`;
-      return;
-    }
+    view.innerHTML = `<div class="section"><div class="wrap">
+      <div class="empty">관리자만 볼 수 있는 화면입니다. <a href="#/login" style="color:var(--navy);font-weight:600">로그인</a></div>
+    </div></div>`;
+    return;
   }
 
   if (!TABS.some((t) => t.key === tab)) tab = "students";

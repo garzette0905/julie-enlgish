@@ -54,6 +54,9 @@ export async function api(path, options = {}) {
   }
 
   if (!res.ok) {
+    // 쿠키가 만료됐는데 화면은 아직 로그인한 줄 아는 상태를 여기서 정리한다.
+    // (이게 없으면 상단 메뉴에 이름이 남고, 화면마다 401 오류 문구가 뜬다)
+    if (res.status === 401) setUser(null);
     const err = new Error((data && data.error) || `요청에 실패했습니다. (${res.status})`);
     err.status = res.status;
     throw err;

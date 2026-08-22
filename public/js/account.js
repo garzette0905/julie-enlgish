@@ -229,12 +229,11 @@ function drawSignup(root, switchTo) {
 
 export async function renderMy(view) {
   // 로그인 전이면 로그인 화면을 대신 보여준다 ("나의 수업"을 누르면 로그인으로).
+  // 쿠키가 만료됐는데 화면만 로그인 상태로 남아 있는 경우가 있어 매번 서버에 확인한다.
+  await refreshSession();
   if (!session.isLoggedIn) {
-    await refreshSession();
-    if (!session.isLoggedIn) {
-      renderLogin(view);
-      return;
-    }
+    renderLogin(view);
+    return;
   }
 
   view.innerHTML = "";
@@ -307,12 +306,10 @@ export async function renderMy(view) {
    ============================================================ */
 
 export async function renderMe(view) {
+  await refreshSession();
   if (!session.isLoggedIn) {
-    await refreshSession();
-    if (!session.isLoggedIn) {
-      renderLogin(view);
-      return;
-    }
+    renderLogin(view);
+    return;
   }
   const u = session.user;
 

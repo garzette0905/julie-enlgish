@@ -2,9 +2,10 @@
  * 진입점 — 주소(#/…)를 보고 알맞은 화면을 그리고, 상단 메뉴 상태를 맞춘다.
  */
 import { $, $$, esc, refreshSession, onSessionChange, session, toast } from "./js/core.js";
-import { renderHome, renderTimetable, renderAlumni, renderAbout, fillFooter } from "./js/public-pages.js";
+import { renderHome, renderAbout, fillFooter } from "./js/public-pages.js";
 import { renderLogin, renderMy, renderMe } from "./js/account.js";
 import { renderContact } from "./js/contact.js";
+import { renderReviews } from "./js/reviews.js";
 import { renderAdmin } from "./js/admin.js";
 
 const view = $("#view");
@@ -75,8 +76,7 @@ async function render() {
 
   try {
     if (path === "/") return await renderHome(view);
-    if (path === "/timetable") return await renderTimetable(view);
-    if (path === "/alumni") return await renderAlumni(view);
+    if (path === "/reviews") return await renderReviews(view);
     if (path === "/about") return await renderAbout(view);
     if (path === "/contact") return renderContact(view);
     if (path === "/contact/question") return renderContact(view, { kind: "question" });

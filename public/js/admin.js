@@ -1,12 +1,12 @@
 /**
- * 관리자 화면 — 학원생 · 클래스 · 상담일지 · 시간표 · 학원안내(사진/동영상) · 졸업생 · 설정
+ * 관리자 화면 — 상담요청 · 학원생 · 클래스 · 상담일지 · 학원소식(사진/동영상) · 졸업생 · 설정
  * 원장님(role=admin)만 들어올 수 있다.
  */
 import {
   $, $$, html, esc, api, apiGet, apiPost, apiPatch, apiDelete, apiPut,
   toast, session, refreshSession, openModal, modalFooter, confirmBox, readForm,
   DAY_CODES, DAY_KR, daysToKr, timeRange, toISODate, formatDateKr,
-  STATUS_KR, STATUS_BADGE, EVENT_KIND_KR,
+  STATUS_KR, STATUS_BADGE,
 } from "./core.js";
 import { clearCache, mediaSrc, youtubeId } from "./public-pages.js";
 
@@ -14,7 +14,6 @@ const TABS = [
   { key: "inquiries", label: "상담 요청" },
   { key: "students", label: "학원생 관리" },
   { key: "classes", label: "클래스 관리" },
-  { key: "timetable", label: "시간표 관리" },
   { key: "media", label: "학원 소식" },
   { key: "alumni", label: "졸업생 관리" },
   { key: "settings", label: "사이트 설정" },
@@ -53,7 +52,6 @@ export async function renderAdmin(view, tab = "inquiries") {
     inquiries: adminInquiries,
     students: adminStudents,
     classes: adminClasses,
-    timetable: adminTimetable,
     media: adminMedia,
     alumni: adminAlumni,
     settings: adminSettings,
@@ -815,157 +813,6 @@ async function openClassStudents(c) {
   } catch (e) {
     body.innerHTML = `<div class="empty">${esc(e.message)}</div>`;
   }
-}
-
-/* ============================================================
-   시간표 관리 — 날짜별 개별 일정(휴강·보강·시험·행사)
-   ============================================================ */
-
-async function adminTimetable(body) {
-  body.innerHTML = `
-    <div class="admin-toolbar">
-      <div class="grow" style="font-size:14px;color:var(--text-muted)">
-        매주 반복되는 수업은 <b>클래스 관리</b>에서, 특정 날짜의 휴강·보강·시험은 여기서 등록합니다.
-      </div>
-      <input type="month" id="tt-month" style="max-width:170px">
-      <button class="btn red" type="button" id="tt-new">＋ 일정 등록</button>
-    </div>
-    <div class="card"><div class="table-scroll"><table class="data" id="tt-table"></table></div></div>`;
-
-  const monthEl = $("#tt-month", body);
-  const now = new Date();
-  monthEl.value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-
-  let classes = [];
-  try {
-    const r = await apiGet("admin/classes");
-    classes = r.classes || [];
-  } catch { /* 무시 */ }
-
-  const table = $("#tt-table", body);
-
-  const load = async () => {
-    table.innerHTML = `<tbody><tr><td class="loading">불러오는 중…</td></tr></tbody>`;
-    try {
-      const { events } = await apiGet(`admin/events?month=${monthEl.value}`);
-      if (!events.length) {
-        table.innerHTML = `<tbody><tr><td class="empty">이 달에 등록된 일정이 없습니다.</td></tr></tbody>`;
-        return;
-      }
-      table.innerHTML = `
-        <thead><tr><th>날짜</th><th>구분</th><th>일정</th><th>시간</th><th>클래스</th><th></th></tr></thead>
-        <tbody>${events
-          .map(
-            (e) => `<tr data-id="${e.id}">
-              <td style="font-variant-numeric:tabular-nums;white-space:nowrap">${esc(formatDateKr(e.event_date))}</td>
-              <td><span class="badge ${e.kind === "holiday" ? "red" : e.kind === "makeup" ? "green" : "gray"}">${esc(EVENT_KIND_KR[e.kind] || e.kind)}</span></td>
-              <td><b>${esc(e.title)}</b>${e.memo ? `<div style="font-size:13px;color:var(--text-muted)">${esc(e.memo)}</div>` : ""}</td>
-              <td>${esc(e.start_time || "종일")}${e.end_time ? " ~ " + esc(e.end_time) : ""}</td>
-              <td>${esc(e.class_name || "전체")}</td>
-              <td class="actions">
-                <button class="btn sm ghost" data-act="edit">수정</button>
-                <button class="btn sm danger" data-act="del">삭제</button>
-              </td>
-            </tr>`
-          )
-          .join("")}</tbody>`;
-
-      for (const tr of $$("tbody tr[data-id]", table)) {
-        const ev = events.find((x) => String(x.id) === tr.dataset.id);
-        for (const btn of $$("[data-act]", tr)) {
-          btn.addEventListener("click", async () => {
-            if (btn.dataset.act === "edit") return openEventModal(ev, classes, load);
-            if (!(await confirmBox("이 일정을 삭제할까요?"))) return;
-            try {
-              await apiDelete(`admin/events/${ev.id}`);
-              toast("삭제했습니다.");
-              load();
-            } catch (e) {
-              toast(e.message, true);
-            }
-          });
-        }
-      }
-    } catch (e) {
-      table.innerHTML = `<tbody><tr><td class="empty">${esc(e.message)}</td></tr></tbody>`;
-    }
-  };
-
-  monthEl.addEventListener("change", load);
-  $("#tt-new", body).addEventListener("click", () => openEventModal(null, classes, load));
-  await load();
-}
-
-function openEventModal(ev, classes, reload) {
-  const isNew = !ev;
-  const v = (k, d = "") => esc((ev && ev[k] !== null && ev[k] !== undefined ? ev[k] : d));
-
-  const form = html(`<form novalidate>
-    <div class="grid-2">
-      <div class="field"><label>날짜 <span style="color:var(--red)">*</span></label>
-        <input name="event_date" type="date" value="${v("event_date", toISODate(new Date()))}"></div>
-      <div class="field"><label>구분</label>
-        <select name="kind">
-          ${Object.entries(EVENT_KIND_KR).map(([k, kr]) => `<option value="${k}">${kr}</option>`).join("")}
-        </select></div>
-    </div>
-    <div class="field"><label>일정 이름 <span style="color:var(--red)">*</span></label>
-      <input name="title" type="text" value="${v("title")}" placeholder="설 연휴 휴강"></div>
-    <div class="grid-2">
-      <div class="field"><label>시작 시간 (비우면 종일)</label>
-        <input name="start_time" type="time" value="${v("start_time")}" step="300"></div>
-      <div class="field"><label>종료 시간</label>
-        <input name="end_time" type="time" value="${v("end_time")}" step="300"></div>
-    </div>
-    <div class="field"><label>대상 클래스</label>
-      <select name="class_id">
-        <option value="">전체 (모든 클래스)</option>
-        ${classes.map((c) => `<option value="${c.id}">${esc(c.name)}</option>`).join("")}
-      </select></div>
-    <div class="field"><label>메모</label>
-      <textarea name="memo" style="min-height:70px">${v("memo")}</textarea></div>
-  </form>`);
-
-  $("[name=kind]", form).value = (ev && ev.kind) || "notice";
-  $("[name=class_id]", form).value = ev && ev.class_id ? String(ev.class_id) : "";
-
-  const modal = openModal({
-    title: isNew ? "일정 등록" : "일정 수정",
-    body: form,
-    footer: modalFooter([
-      { label: "취소", cls: "ghost", onClick: () => modal.close() },
-      {
-        label: "저장",
-        cls: "red",
-        onClick: async (btn) => {
-          const d = readForm(form);
-          if (!d.event_date) return toast("날짜를 골라 주세요.", true);
-          if (!d.title.trim()) return toast("일정 이름을 입력해 주세요.", true);
-
-          const payload = {
-            event_date: d.event_date,
-            kind: d.kind,
-            title: d.title.trim(),
-            start_time: d.start_time,
-            end_time: d.end_time,
-            class_id: d.class_id ? Number(d.class_id) : null,
-            memo: d.memo,
-          };
-          btn.disabled = true;
-          try {
-            if (isNew) await apiPost("admin/events", payload);
-            else await apiPatch(`admin/events/${ev.id}`, payload);
-            toast("저장했습니다.");
-            modal.close();
-            reload();
-          } catch (e) {
-            toast(e.message, true);
-            btn.disabled = false;
-          }
-        },
-      },
-    ]),
-  });
 }
 
 /* ============================================================

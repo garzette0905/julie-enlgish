@@ -78,13 +78,20 @@ async function route(request, env, url) {
     return createInquiry(request, env);
   }
 
+  /* ---------- 졸업생·학부모 후기 (누구나 쓰고, 본인 비밀번호로 고친다) ---------- */
+  if (a === "reviews") {
+    if (!b && method === "GET") return listReviews(env);
+    if (!b && method === "POST") return createReview(request, env);
+    if (b && c === "delete" && method === "POST") return deleteReview(request, env, b);
+    if (b && !c && method === "POST") return updateReview(request, env, b);
+  }
+
   /* ---------- 공개 데이터 ---------- */
   if (a === "public") {
     if (b === "settings" && method === "GET") return publicSettings(env);
     if (b === "classes" && method === "GET") return publicClasses(env);
     if (b === "alumni" && method === "GET") return publicAlumni(env);
     if (b === "media" && method === "GET") return publicMedia(env);
-    if (b === "events" && method === "GET") return publicEvents(env, url);
   }
 
   /* ---------- 관리자 ---------- */
@@ -126,16 +133,6 @@ async function route(request, env, url) {
     // 수강 연결
     if (b === "enrollments" && !c && method === "POST") return addEnrollment(request, env);
     if (b === "enrollments" && c && method === "DELETE") return del(env, "enrollments", c);
-
-    // 시간표 개별 일정
-    if (b === "events" && !c) {
-      if (method === "GET") return publicEvents(env, url);
-      if (method === "POST") return createEvent(request, env);
-    }
-    if (b === "events" && c) {
-      if (method === "PATCH") return updateEvent(request, env, c);
-      if (method === "DELETE") return del(env, "schedule_events", c);
-    }
 
     // 사진·동영상
     if (b === "media" && !c) {
@@ -502,28 +499,7 @@ async function myClasses(env, me) {
     .bind(me.id)
     .all();
 
-  const classIds = (results || []).map((r) => r.id);
-  let events = [];
-  if (classIds.length) {
-    const holes = classIds.map((_, i) => `?${i + 1}`).join(",");
-    const q = await env.DB.prepare(
-      `SELECT * FROM schedule_events
-        WHERE event_date >= date('now', '-7 days')
-          AND (class_id IS NULL OR class_id IN (${holes}))
-        ORDER BY event_date, start_time`
-    )
-      .bind(...classIds)
-      .all();
-    events = q.results || [];
-  } else {
-    const q = await env.DB.prepare(
-      `SELECT * FROM schedule_events WHERE event_date >= date('now', '-7 days') AND class_id IS NULL
-        ORDER BY event_date, start_time`
-    ).all();
-    events = q.results || [];
-  }
-
-  return json({ classes: results || [], events });
+  return json({ classes: results || [] });
 }
 
 /* ============================================================
@@ -562,29 +538,6 @@ async function publicMedia(env) {
     `SELECT * FROM media ORDER BY sort_order, id DESC`
   ).all();
   return json({ media: results || [] });
-}
-
-// ?month=YYYY-MM 이면 그 달만, 없으면 앞으로 90일치
-async function publicEvents(env, url) {
-  const month = url.searchParams.get("month");
-  let stmt;
-  if (month && /^\d{4}-\d{2}$/.test(month)) {
-    stmt = env.DB.prepare(
-      `SELECT e.*, c.name AS class_name, c.color AS class_color
-         FROM schedule_events e LEFT JOIN classes c ON c.id = e.class_id
-        WHERE substr(e.event_date, 1, 7) = ?1
-        ORDER BY e.event_date, e.start_time`
-    ).bind(month);
-  } else {
-    stmt = env.DB.prepare(
-      `SELECT e.*, c.name AS class_name, c.color AS class_color
-         FROM schedule_events e LEFT JOIN classes c ON c.id = e.class_id
-        WHERE e.event_date >= date('now', '-31 days')
-        ORDER BY e.event_date, e.start_time`
-    );
-  }
-  const { results } = await stmt.all();
-  return json({ events: results || [] });
 }
 
 /* ============================================================
@@ -922,56 +875,6 @@ function todayISO() {
 }
 
 /* ============================================================
-   관리자 — 시간표 개별 일정
-   ============================================================ */
-
-async function createEvent(request, env) {
-  const b = await readJson(request);
-  const date = norm(b.event_date);
-  const title = norm(b.title);
-  if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) throw bad("날짜를 골라 주세요.");
-  if (!title) throw bad("일정 이름을 입력해 주세요.");
-  const res = await env.DB.prepare(
-    `INSERT INTO schedule_events (event_date, class_id, kind, title, start_time, end_time, memo)
-     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)`
-  )
-    .bind(
-      date,
-      b.class_id || null,
-      norm(b.kind) || "notice",
-      title,
-      norm(b.start_time),
-      norm(b.end_time),
-      norm(b.memo)
-    )
-    .run();
-  return json({ ok: true, id: res.meta.last_row_id });
-}
-
-async function updateEvent(request, env, id) {
-  const b = await readJson(request);
-  const sets = [];
-  const vals = [];
-  let n = 1;
-  for (const col of ["event_date", "kind", "title", "start_time", "end_time", "memo"]) {
-    if (b[col] !== undefined) {
-      sets.push(`${col} = ?${n++}`);
-      vals.push(norm(b[col]));
-    }
-  }
-  if (b.class_id !== undefined) {
-    sets.push(`class_id = ?${n++}`);
-    vals.push(b.class_id || null);
-  }
-  if (!sets.length) return json({ ok: true });
-  vals.push(id);
-  await env.DB.prepare(`UPDATE schedule_events SET ${sets.join(", ")} WHERE id = ?${n}`)
-    .bind(...vals)
-    .run();
-  return json({ ok: true });
-}
-
-/* ============================================================
    관리자 — 사진·동영상 (R2)
    ============================================================ */
 
@@ -1136,6 +1039,180 @@ async function updateAlumni(request, env, id) {
   if (!sets.length) return json({ ok: true });
   vals.push(id);
   await env.DB.prepare(`UPDATE alumni SET ${sets.join(", ")} WHERE id = ?${n}`).bind(...vals).run();
+  return json({ ok: true });
+}
+
+/* ============================================================
+   졸업생 · 학부모 후기
+   ============================================================ */
+
+const MAX_REVIEW_PHOTOS = 5;
+const MAX_REVIEW_PHOTO_BYTES = 10 * 1024 * 1024; // 사진 한 장 10MB
+
+/** 후기 목록 — 사진까지 붙여서 한 번에 내려준다. */
+async function listReviews(env) {
+  const { results } = await env.DB.prepare(
+    `SELECT id, author_role, author_name, title, body, created_at, updated_at
+       FROM reviews ORDER BY created_at DESC, id DESC`
+  ).all();
+  const reviews = results || [];
+  if (!reviews.length) return json({ reviews: [] });
+
+  const photos = await env.DB.prepare(
+    `SELECT id, review_id, r2_key FROM review_photos ORDER BY review_id, sort_order, id`
+  ).all();
+
+  const byReview = {};
+  for (const p of photos.results || []) {
+    (byReview[p.review_id] = byReview[p.review_id] || []).push({ id: p.id, r2_key: p.r2_key });
+  }
+  for (const r of reviews) r.photos = byReview[r.id] || [];
+
+  return json({ reviews });
+}
+
+/** 원장님이면 비밀번호 없이 통과, 아니면 글에 저장된 비밀번호와 맞는지 본다. */
+async function assertCanEditReview(request, env, row, password) {
+  const me = await currentUser(request, env);
+  if (me && me.role === "admin") return true;
+  if (row.author_role === "admin") {
+    throw new HttpError(403, "원장님이 쓴 글은 수정하거나 삭제할 수 없습니다.");
+  }
+  if (!password) throw bad("비밀번호를 입력해 주세요.");
+  if (!(await verifyPassword(password, row.password_hash))) throw bad("비밀번호가 맞지 않습니다.");
+  return true;
+}
+
+/** 폼에서 사진 파일만 골라내 R2 에 넣고 review_photos 에 기록한다. */
+async function saveReviewPhotos(env, form, reviewId, startOrder = 0) {
+  const files = form.getAll("photos").filter((f) => f && typeof f !== "string" && f.size > 0);
+  if (!files.length) return 0;
+  if (files.length > MAX_REVIEW_PHOTOS) {
+    throw bad(`사진은 한 번에 ${MAX_REVIEW_PHOTOS}장까지 올릴 수 있습니다.`);
+  }
+
+  let order = startOrder;
+  for (const f of files) {
+    if (!String(f.type || "").startsWith("image/")) throw bad("사진 파일만 올릴 수 있습니다.");
+    if (f.size > MAX_REVIEW_PHOTO_BYTES) throw bad("사진 한 장은 10MB 이하만 올릴 수 있습니다.");
+
+    const ext = (f.name || "").split(".").pop();
+    const key = `reviews/${Date.now()}-${newToken().slice(0, 10)}${ext ? "." + ext.toLowerCase() : ""}`;
+    await env.MEDIA.put(key, f.stream(), { httpMetadata: { contentType: f.type } });
+    await env.DB.prepare(
+      `INSERT INTO review_photos (review_id, r2_key, mime, size, sort_order)
+       VALUES (?1, ?2, ?3, ?4, ?5)`
+    )
+      .bind(reviewId, key, f.type, f.size, order++)
+      .run();
+  }
+  return files.length;
+}
+
+async function createReview(request, env) {
+  const form = await request.formData();
+  const me = await currentUser(request, env);
+  const isAdmin = !!me && me.role === "admin";
+
+  const authorName = norm(form.get("author_name")) || (isAdmin ? me.name : null);
+  const title = norm(form.get("title"));
+  const body = norm(form.get("body"));
+  const password = form.get("password") || "";
+
+  if (!authorName) throw bad("이름을 입력해 주세요.");
+  if (authorName.length > 30) throw bad("이름이 너무 깁니다.");
+  if (!body) throw bad("내용을 입력해 주세요.");
+  if (body.length > 4000) throw bad("내용이 너무 깁니다. 4000자 안으로 줄여 주세요.");
+
+  // 익명 글은 나중에 본인이 고칠 수 있도록 비밀번호를 반드시 받는다.
+  let hash = null;
+  if (!isAdmin) {
+    if (!password || password.length < 4) throw bad("비밀번호를 4자 이상 입력해 주세요.");
+    hash = await hashPassword(password);
+  }
+
+  const res = await env.DB.prepare(
+    `INSERT INTO reviews (author_role, author_name, title, body, password_hash)
+     VALUES (?1, ?2, ?3, ?4, ?5)`
+  )
+    .bind(isAdmin ? "admin" : "guest", authorName, title, body, hash)
+    .run();
+
+  const id = res.meta.last_row_id;
+  await saveReviewPhotos(env, form, id);
+  return json({ ok: true, id });
+}
+
+async function updateReview(request, env, id) {
+  const form = await request.formData();
+  const row = await env.DB.prepare(`SELECT * FROM reviews WHERE id = ?1`).bind(id).first();
+  if (!row) throw new HttpError(404, "글을 찾을 수 없습니다.");
+
+  await assertCanEditReview(request, env, row, form.get("password") || "");
+
+  const title = norm(form.get("title"));
+  const body = norm(form.get("body"));
+  if (!body) throw bad("내용을 입력해 주세요.");
+  if (body.length > 4000) throw bad("내용이 너무 깁니다. 4000자 안으로 줄여 주세요.");
+
+  await env.DB.prepare(
+    `UPDATE reviews SET title = ?1, body = ?2, updated_at = datetime('now') WHERE id = ?3`
+  )
+    .bind(title, body, id)
+    .run();
+
+  // 지울 사진 (id 를 쉼표로 이어 보낸다)
+  const removeIds = String(form.get("remove_photos") || "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  for (const pid of removeIds) {
+    const p = await env.DB.prepare(
+      `SELECT * FROM review_photos WHERE id = ?1 AND review_id = ?2`
+    )
+      .bind(pid, id)
+      .first();
+    if (!p) continue;
+    try {
+      await env.MEDIA.delete(p.r2_key);
+    } catch (e) {
+      console.error("R2 delete failed", p.r2_key, e);
+    }
+    await env.DB.prepare(`DELETE FROM review_photos WHERE id = ?1`).bind(pid).run();
+  }
+
+  const left = await env.DB.prepare(
+    `SELECT COUNT(*) AS n FROM review_photos WHERE review_id = ?1`
+  )
+    .bind(id)
+    .first();
+  await saveReviewPhotos(env, form, id, left ? left.n : 0);
+
+  return json({ ok: true });
+}
+
+async function deleteReview(request, env, id) {
+  const b = await readJson(request);
+  const row = await env.DB.prepare(`SELECT * FROM reviews WHERE id = ?1`).bind(id).first();
+  if (!row) throw new HttpError(404, "글을 찾을 수 없습니다.");
+
+  await assertCanEditReview(request, env, row, b.password || "");
+
+  // 붙어 있던 사진 파일도 같이 치운다 (DB 행은 ON DELETE CASCADE 로 사라진다).
+  const photos = await env.DB.prepare(
+    `SELECT r2_key FROM review_photos WHERE review_id = ?1`
+  )
+    .bind(id)
+    .all();
+  for (const p of photos.results || []) {
+    try {
+      await env.MEDIA.delete(p.r2_key);
+    } catch (e) {
+      console.error("R2 delete failed", p.r2_key, e);
+    }
+  }
+
+  await env.DB.prepare(`DELETE FROM reviews WHERE id = ?1`).bind(id).run();
   return json({ ok: true });
 }
 
@@ -1357,7 +1434,7 @@ async function saveSettings(request, env) {
 
 /* ---------- 공통 삭제 ---------- */
 const DELETABLE = new Set([
-  "counsel_logs", "classes", "enrollments", "schedule_events", "alumni", "inquiries",
+  "counsel_logs", "classes", "enrollments", "alumni", "inquiries", "reviews",
 ]);
 
 async function del(env, table, id) {

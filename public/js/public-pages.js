@@ -1,11 +1,10 @@
 /**
  * 로그인 없이 볼 수 있는 화면들
- *   학원소개(홈) · 시간표 안내 · 졸업생 소개 · 학원 소식
+ *   학원소개(홈) · 학원 소식
+ *   (시간표·졸업생 소개 화면은 걷어냈고, 졸업생 명단은 홈 Result 섹션에 남아 있다)
  */
 import {
   $, $$, html, esc, apiGet,
-  DAY_KR, JS_DAY_TO_CODE, daysToKr, toISODate, timeRange,
-  formatDateKr, EVENT_KIND_KR,
 } from "./core.js";
 
 /* 여러 화면이 같이 쓰는 값들은 한 번만 받아서 들고 있는다. */
@@ -60,11 +59,11 @@ export async function renderHome(view) {
           <h1>Julie&rsquo;s English Academy<span class="kr">쥴리 잉글리쉬 영어교습소</span></h1>
           <p class="lead">
             재미있는 파닉스, 읽기가 되는 파닉스부터 초·중·고 내신 선행까지.
-            동백에서 2007년부터 수업을 해오는 중이며, 한 아이를 오래 지켜보면서 가르칩니다.
+            동백에서 2007년부터 수업을 해오는 중이며, 학생 한명 한명을 내 자녀처럼 사랑으로 가르칩니다
           </p>
           <div class="hero-actions">
-            <a class="btn" href="#/timetable">시간표 보기</a>
-            <a class="btn outline" href="#/login">나의 수업 확인</a>
+            <a class="btn" href="#/contact">상담신청 하기</a>
+            <a class="btn outline" href="#/reviews">후기 보기</a>
           </div>
         </div>
         <div class="hero-logo"><img src="/assets/logo-512.png" alt="쥴리 잉글리쉬 로고"></div>
@@ -93,7 +92,7 @@ export async function renderHome(view) {
           <div class="feature">
             <span class="num">01</span>
             <h3>재미있는 파닉스</h3>
-            <p>소리부터 차근차근. &ldquo;읽기가 되는&rdquo; 파닉스로 아이가 스스로 문장을 읽어냅니다.</p>
+            <p>소리부터 차근차근. 읽기의 성취감도 느끼고, 재미있는 수업방식</p>
           </div>
           <div class="feature">
             <span class="num">02</span>
@@ -126,7 +125,7 @@ export async function renderHome(view) {
             <ul>
               <li>월·수·금 &mdash; 60분 수업</li>
               <li>화·목 &mdash; 90분 수업</li>
-              <li>오프라인 중심 수업</li>
+              <li>오프라인 중심 원장 직강 수업</li>
               <li>주 5일 과제 부여</li>
               <li class="hi">English Speaking 병행 수업</li>
             </ul>
@@ -135,6 +134,7 @@ export async function renderHome(view) {
             <h3>Julie Teacher</h3>
             <ul>
               <li>한국외국어대학교 학사 / 석사 졸업</li>
+              <li>중고등 내신대비 지도 (청솔학원)</li>
               <li>캐나다 TESOL 수료</li>
               <li>캐나다 영어 교사</li>
               <li>영어유치원 · 어학원 16년 경력</li>
@@ -216,12 +216,11 @@ export async function renderHome(view) {
 
   renderContactGrid($("#home-contact", view), settings);
 
-  // Result 섹션 안에 졸업생 명단을 그대로 펼쳐 보여준다.
-  // ("졸업생 소개" 메뉴는 그대로 두고, 홈에서도 바로 보이게 한 것)
+  // 졸업생 명단은 이 Result 섹션에만 남아 있다(별도 메뉴는 후기로 바뀌었다).
   loadAlumniInto($("#home-alumni", view));
 }
 
-/* 졸업생 카드 — 홈의 Result 섹션과 졸업생 소개 화면이 같이 쓴다. */
+/* 졸업생 카드 — 홈 Result 섹션에서 쓴다. */
 function alumniCardHtml(a) {
   return `<div class="alumni-card">
     ${a.year ? `<div class="yr">${esc(a.year)}</div>` : ""}
@@ -250,7 +249,8 @@ function renderContactGrid(root, s) {
   const items = [
     ["Office", s.phone, `tel:${(s.phone || "").replace(/-/g, "")}`],
     ["Mobile", s.mobile, `tel:${(s.mobile || "").replace(/-/g, "")}`],
-    ["E-mail", s.email, `mailto:${s.email || ""}`],
+    // 이메일은 링크로 걸지 않는다(메일 앱이 열리는 대신 그대로 보이게).
+    ["E-mail", s.email, null],
     ["위치", s.address, null],
   ].filter(([, v]) => v);
 
@@ -285,257 +285,6 @@ export async function fillFooter() {
   el.innerHTML =
     rows.map(([k, v]) => `<div><span>${esc(k)}</span> ${esc(v)}</div>`).join("") +
     `<div><span>상담</span> <a class="footer-cta" href="#/contact">상담신청 · 문의 &rarr;</a></div>`;
-}
-
-/* ============================================================
-   시간표 안내 — 달력 + 그날의 시간별 클래스
-   ============================================================ */
-
-export async function renderTimetable(view) {
-  view.innerHTML = "";
-  view.append(html(`
-    <div class="page-head"><div class="wrap">
-      <h1>시간표 안내</h1>
-      <p>날짜를 누르면 그날 진행되는 수업이 아래에 시간 순서대로 나옵니다.</p>
-    </div></div>
-    <section class="section tight"><div class="wrap">
-      <div class="cal-head">
-        <div class="cal-title" id="cal-title">&nbsp;</div>
-        <div class="cal-nav">
-          <button type="button" id="cal-prev" aria-label="이전 달">&lsaquo;</button>
-          <button type="button" class="today-btn" id="cal-today">오늘</button>
-          <button type="button" id="cal-next" aria-label="다음 달">&rsaquo;</button>
-        </div>
-      </div>
-      <div class="calendar" id="calendar"></div>
-      <div class="day-list" id="day-list"></div>
-    </div></section>
-    <section class="section soft"><div class="wrap">
-      <div class="section-head"><span class="eyebrow">Weekly</span><h2>요일별 정규 수업</h2>
-        <p>월·수·금은 60분, 화·목은 90분 수업입니다.</p></div>
-      <div class="week-grid" id="week-grid"></div>
-    </div></section>
-  `));
-
-  const classes = await getClasses();
-
-  // 클래스를 받아오는 사이에 사용자가 다른 메뉴로 넘어갔을 수 있다.
-  // 그러면 아래에서 찾을 요소들이 이미 사라지고 없으므로 조용히 그만둔다.
-  if (!$("#calendar", view)) return;
-
-  renderWeekGrid($("#week-grid", view), classes);
-
-  const today = new Date();
-  const state = {
-    year: today.getFullYear(),
-    month: today.getMonth(), // 0-based
-    selected: toISODate(today),
-    events: [],
-  };
-
-  // 날짜를 고르면 달력(선택 표시)과 아래 목록을 함께 다시 그린다.
-  const redraw = () => {
-    drawCalendar(view, state, classes, onPick);
-    drawDayList(view, state, classes);
-  };
-  const onPick = (iso) => {
-    state.selected = iso;
-    redraw();
-    // 좁은 화면에서는 달력이 화면을 다 채워서, 눌러도 아래 상세가 안 보인다.
-    // 고른 날짜의 상세로 부드럽게 내려준다.
-    const list = $("#day-list", view);
-    if (list && window.matchMedia("(max-width: 900px)").matches) {
-      list.scrollIntoView({ behavior: "smooth", block: "start" });
-    }
-  };
-  const reload = async () => {
-    const monthKey = `${state.year}-${String(state.month + 1).padStart(2, "0")}`;
-    try {
-      const { events } = await apiGet(`public/events?month=${monthKey}`);
-      state.events = events || [];
-    } catch {
-      state.events = [];
-    }
-    redraw();
-  };
-
-  $("#cal-prev", view).addEventListener("click", () => {
-    state.month--;
-    if (state.month < 0) { state.month = 11; state.year--; }
-    reload();
-  });
-  $("#cal-next", view).addEventListener("click", () => {
-    state.month++;
-    if (state.month > 11) { state.month = 0; state.year++; }
-    reload();
-  });
-  $("#cal-today", view).addEventListener("click", () => {
-    const n = new Date();
-    state.year = n.getFullYear();
-    state.month = n.getMonth();
-    state.selected = toISODate(n);
-    reload();
-  });
-
-  await reload();
-}
-
-/** 특정 날짜(iso)에 열리는 정규 클래스 목록 */
-function classesOnDate(classes, iso) {
-  const [y, m, d] = iso.split("-").map(Number);
-  const code = JS_DAY_TO_CODE[new Date(y, m - 1, d).getDay()];
-  return classes
-    .filter((c) => String(c.days || "").split(",").includes(code))
-    .sort((a, b) => a.start_time.localeCompare(b.start_time));
-}
-
-function drawCalendar(view, state, classes, onPick) {
-  const root = $("#calendar", view);
-  const title = $("#cal-title", view);
-  if (!root) return;
-
-  title.textContent = `${state.year}년 ${state.month + 1}월`;
-
-  const first = new Date(state.year, state.month, 1);
-  const startOffset = first.getDay(); // 0=일
-  const daysInMonth = new Date(state.year, state.month + 1, 0).getDate();
-  const todayIso = toISODate(new Date());
-
-  const eventsByDate = {};
-  for (const ev of state.events) {
-    (eventsByDate[ev.event_date] = eventsByDate[ev.event_date] || []).push(ev);
-  }
-
-  const cells = [];
-  const dowNames = ["일", "월", "화", "수", "목", "금", "토"];
-  cells.push(
-    ...dowNames.map(
-      (n, i) => `<div class="dow ${i === 0 ? "sun" : i === 6 ? "sat" : ""}">${n}</div>`
-    )
-  );
-
-  // 앞쪽 빈칸 = 지난달 날짜
-  const prevMonthDays = new Date(state.year, state.month, 0).getDate();
-  for (let i = startOffset - 1; i >= 0; i--) {
-    cells.push(`<div class="day other"><span class="dnum">${prevMonthDays - i}</span></div>`);
-  }
-
-  for (let d = 1; d <= daysInMonth; d++) {
-    const iso = `${state.year}-${String(state.month + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
-    const dow = new Date(state.year, state.month, d).getDay();
-    const cls = classesOnDate(classes, iso);
-    const evs = eventsByDate[iso] || [];
-
-    // 일정과 수업을 전부 보여준다 (예전처럼 "+2" 로 접지 않는다).
-    // 좁은 화면에서는 CSS 가 수업 이름을 감추고 시작 시간만 남긴다.
-    const pills = [];
-    for (const ev of evs) {
-      pills.push(`<span class="pill ev"><em>${esc(ev.title)}</em></span>`);
-    }
-    for (const c of cls) {
-      pills.push(
-        `<span class="pill" style="background:${esc(c.color || "#0C3190")}">` +
-          `<i>${esc(c.start_time)}</i><em>${esc(c.name)}</em></span>`
-      );
-    }
-
-    cells.push(`<button type="button" class="day${dow === 0 ? " sun" : dow === 6 ? " sat" : ""}${iso === todayIso ? " today" : ""}${iso === state.selected ? " selected" : ""}" data-date="${iso}">
-      <span class="dnum">${d}</span>
-      ${pills.join("")}
-    </button>`);
-  }
-
-  // 뒤쪽 빈칸 = 다음달 날짜 (7의 배수로 맞춘다)
-  const filled = startOffset + daysInMonth;
-  const tail = (7 - (filled % 7)) % 7;
-  for (let i = 1; i <= tail; i++) {
-    cells.push(`<div class="day other"><span class="dnum">${i}</span></div>`);
-  }
-
-  root.innerHTML = cells.join("");
-  for (const btn of $$(".day[data-date]", root)) {
-    btn.addEventListener("click", () => onPick(btn.dataset.date));
-  }
-}
-
-function drawDayList(view, state, classes) {
-  const root = $("#day-list", view);
-  if (!root) return;
-
-  const iso = state.selected;
-  const cls = classesOnDate(classes, iso);
-  const evs = state.events.filter((e) => e.event_date === iso);
-
-  const parts = [`<h3>${esc(formatDateKr(iso))}</h3>`];
-
-  if (!cls.length && !evs.length) {
-    parts.push(`<div class="empty">이 날은 예정된 수업이 없습니다.</div>`);
-  } else {
-    for (const ev of evs) {
-      const t = ev.start_time ? `${ev.start_time}${ev.end_time ? " ~ " + ev.end_time : ""}` : "종일";
-      parts.push(`<div class="slot event">
-        <div class="time">${esc(t)}<small>${esc(EVENT_KIND_KR[ev.kind] || ev.kind)}</small></div>
-        <div class="bar" style="background:#e60013"></div>
-        <div class="body">
-          <div class="nm">${esc(ev.title)}</div>
-          <div class="meta">${esc([ev.class_name, ev.memo].filter(Boolean).join(" · ")) || "&nbsp;"}</div>
-        </div>
-      </div>`);
-    }
-    for (const c of cls) {
-      parts.push(`<div class="slot">
-        <div class="time">${esc(timeRange(c.start_time, c.duration_min))}<small>${esc(c.duration_min)}분</small></div>
-        <div class="bar" style="background:${esc(c.color || "#0C3190")}"></div>
-        <div class="body">
-          <div class="nm">${esc(c.name)}</div>
-          <div class="meta">${esc([c.level, daysToKr(c.days), c.teacher, c.room].filter(Boolean).join(" · "))}</div>
-        </div>
-      </div>`);
-    }
-  }
-  root.innerHTML = parts.join("");
-}
-
-function renderWeekGrid(root, classes) {
-  if (!root) return;
-  const cols = ["MON", "TUE", "WED", "THU", "FRI"];
-  root.innerHTML = cols
-    .map((code) => {
-      const list = classes
-        .filter((c) => String(c.days || "").split(",").includes(code))
-        .sort((a, b) => a.start_time.localeCompare(b.start_time));
-      const items = list.length
-        ? list
-            .map(
-              (c) => `<li style="border-left-color:${esc(c.color || "#0C3190")}">
-                <b>${esc(c.name)}</b>
-                <span>${esc(timeRange(c.start_time, c.duration_min))} · ${esc(c.duration_min)}분${c.level ? " · " + esc(c.level) : ""}</span>
-              </li>`
-            )
-            .join("")
-        : `<div class="none">수업 없음</div>`;
-      return `<div class="week-col"><h4>${DAY_KR[code]}요일</h4><ul>${items}</ul></div>`;
-    })
-    .join("");
-}
-
-/* ============================================================
-   졸업생 소개
-   ============================================================ */
-
-export async function renderAlumni(view) {
-  view.innerHTML = "";
-  view.append(html(`
-    <div class="page-head"><div class="wrap">
-      <h1>졸업생 소개</h1>
-      <p>최소 5년에서 최대 9년까지 꾸준히 함께한 학생들이 만들어낸 결과입니다.</p>
-    </div></div>
-    <section class="section"><div class="wrap">
-      <div class="alumni-grid" id="alumni-grid"><div class="loading">불러오는 중…</div></div>
-    </div></section>
-  `));
-
-  await loadAlumniInto($("#alumni-grid", view));
 }
 
 /* ============================================================

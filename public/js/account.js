@@ -3,7 +3,7 @@
  */
 import {
   $, $$, html, esc, apiGet, apiPost, apiPatch, toast, session, setUser, refreshSession,
-  readForm, daysToKr, timeRange, formatDateKr, EVENT_KIND_KR, confirmBox, navigate,
+  readForm, daysToKr, timeRange, confirmBox, navigate,
 } from "./core.js";
 
 /* ============================================================
@@ -247,12 +247,12 @@ export async function renderMy(view) {
   const u = session.user;
 
   try {
-    const { classes, events } = await apiGet("my/classes");
+    const { classes } = await apiGet("my/classes");
 
     const chips = [u.school, u.grade, u.class_no].filter(Boolean);
     const head = `<div class="my-head">
       <h2>${esc(u.name)}님의 수업</h2>
-      <p>등록된 클래스와 앞으로의 일정입니다.</p>
+      <p>등록된 클래스입니다.</p>
       ${chips.length ? `<div class="chips">${chips.map((c) => `<span class="chip">${esc(c)}</span>`).join("")}</div>` : ""}
     </div>`;
 
@@ -276,25 +276,7 @@ export async function renderMy(view) {
           .join("");
     }
 
-    const upcoming = (events || []).filter((e) => e.event_date >= new Date().toISOString().slice(0, 10));
-    let evHtml = "";
-    if (upcoming.length) {
-      evHtml = `<h3 style="font-size:18px;color:var(--navy);margin:30px 0 12px">다가오는 일정</h3>` +
-        upcoming
-          .map(
-            (e) => `<div class="slot event">
-              <div class="time">${esc(formatDateKr(e.event_date).replace(/^\d+년 /, ""))}<small>${esc(EVENT_KIND_KR[e.kind] || e.kind)}</small></div>
-              <div class="bar" style="background:#e60013"></div>
-              <div class="body">
-                <div class="nm">${esc(e.title)}</div>
-                <div class="meta">${esc([e.start_time, e.memo].filter(Boolean).join(" · ")) || "&nbsp;"}</div>
-              </div>
-            </div>`
-          )
-          .join("");
-    }
-
-    root.innerHTML = head + body + evHtml +
+    root.innerHTML = head + body +
       `<p style="margin-top:26px"><a class="btn ghost" href="#/me">내 정보 수정</a></p>`;
   } catch (e) {
     root.innerHTML = `<div class="empty">${esc(e.message)}</div>`;

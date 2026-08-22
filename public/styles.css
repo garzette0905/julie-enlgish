@@ -257,8 +257,11 @@ input[readonly] { background: var(--bg-soft); color: var(--text-muted); }
   transition: all 0.15s ease;
 }
 .daypick input { display: none; }
-.daypick input:checked + span,
+/* :has() 를 못 쓰는 브라우저에서도 최소한 글자 배경은 바뀌도록 규칙을 따로 둔다.
+   (한 규칙에 묶으면 :has() 미지원 브라우저가 선택자 목록 전체를 버린다) */
+.daypick input:checked + span { background: var(--navy); color: #fff; border-radius: 8px; }
 .daypick label:has(input:checked) { background: var(--navy); border-color: var(--navy); color: #fff; }
+.daypick label span { display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; }
 
 /* ============================================================
    카드 · 표 · 배지

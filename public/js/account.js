@@ -3,7 +3,7 @@
  */
 import {
   $, $$, html, esc, apiGet, apiPost, apiPatch, toast, session, setUser, refreshSession,
-  readForm, daysToKr, timeRange, formatDateKr, EVENT_KIND_KR, confirmBox,
+  readForm, daysToKr, timeRange, formatDateKr, EVENT_KIND_KR, confirmBox, navigate,
 } from "./core.js";
 
 /* ============================================================
@@ -63,7 +63,7 @@ function drawLogin(root, switchTo) {
       const { user } = await apiPost("auth/login", { login_id: data.login_id.trim(), password: data.password });
       setUser(user);
       toast(`${user.name}님, 환영합니다.`);
-      location.hash = user.role === "admin" ? "#/admin" : "#/my";
+      navigate(user.role === "admin" ? "/admin" : "/my");
     } catch (err) {
       toast(err.message, true);
       btn.disabled = false;
@@ -448,6 +448,6 @@ export async function renderMe(view) {
     await apiPost("auth/logout", {});
     setUser(null);
     toast("로그아웃했습니다.");
-    location.hash = "#/";
+    navigate("/");
   });
 }

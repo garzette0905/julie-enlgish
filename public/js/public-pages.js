@@ -3,8 +3,8 @@
  *   학원소개(홈) · 시간표 안내 · 졸업생 소개 · 학원 안내
  */
 import {
-  $, $$, html, esc, apiGet, toast,
-  DAY_CODES, DAY_KR, JS_DAY_TO_CODE, daysToKr, toISODate, timeRange, addMinutes,
+  $, $$, html, esc, apiGet,
+  DAY_KR, JS_DAY_TO_CODE, daysToKr, toISODate, timeRange,
   formatDateKr, EVENT_KIND_KR,
 } from "./core.js";
 

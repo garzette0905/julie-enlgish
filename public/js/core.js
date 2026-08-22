@@ -98,6 +98,22 @@ export async function refreshSession() {
   return session.user;
 }
 
+/* ---------- 화면 이동 ---------- */
+
+/**
+ * 해시 주소를 바꿔 화면을 옮긴다.
+ * 목적지가 지금 주소와 같으면 hashchange 가 안 뜨므로 직접 쏘아 준다.
+ * (예: "나의 수업"(#/my)에서 로그인 폼이 뜬 뒤 로그인에 성공했을 때)
+ */
+export function navigate(path) {
+  const target = path.startsWith("#") ? path : `#${path}`;
+  if (location.hash === target) {
+    window.dispatchEvent(new HashChangeEvent("hashchange"));
+  } else {
+    location.hash = target;
+  }
+}
+
 /* ---------- 토스트 ---------- */
 
 let toastTimer = null;

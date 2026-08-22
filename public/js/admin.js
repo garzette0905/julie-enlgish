@@ -6,7 +6,7 @@ import {
   $, $$, html, esc, api, apiGet, apiPost, apiPatch, apiDelete, apiPut,
   toast, session, refreshSession, openModal, modalFooter, confirmBox, readForm,
   DAY_CODES, DAY_KR, daysToKr, timeRange, toISODate, formatDateKr,
-  STATUS_KR, STATUS_BADGE,
+  STATUS_KR, STATUS_BADGE, kstDateTime,
 } from "./core.js";
 import { clearCache, mediaSrc, youtubeId } from "./public-pages.js";
 
@@ -137,7 +137,7 @@ function inquiryCard(q) {
       <div>
         <span class="badge ${q.kind === "consult" ? "red" : ""}">${esc(INQ_KIND_KR[q.kind] || q.kind)}</span>
         <span class="badge ${INQ_STATUS_BADGE[q.status] || "gray"}">${esc(INQ_STATUS_KR[q.status] || q.status)}</span>
-        <span class="inq-when">${esc(q.created_at)}</span>
+        <span class="inq-when">${esc(kstDateTime(q.created_at))}</span>
       </div>
       <div class="inq-no">#${q.id}</div>
     </div>

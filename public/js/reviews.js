@@ -7,7 +7,7 @@
  */
 import {
   $, $$, html, esc, api, apiGet, apiPost, toast, session,
-  openModal, modalFooter, confirmBox, readForm,
+  openModal, modalFooter, confirmBox, readForm, kstDate,
 } from "./core.js";
 
 export async function renderReviews(view) {
@@ -57,7 +57,7 @@ function reviewCard(r) {
         <span class="rv-author">${esc(r.author_name)}</span>
         ${r.author_role === "admin" ? `<span class="badge red">원장</span>` : ""}
       </div>
-      <span class="rv-date">${esc(String(r.created_at).slice(0, 10))}</span>
+      <span class="rv-date">${esc(kstDate(r.created_at))}</span>
     </div>
 
     ${r.title ? `<h3 class="rv-title">${esc(r.title)}</h3>` : ""}

@@ -1128,8 +1128,13 @@ async function updateCounsel(request, env, id) {
   return json({ ok: true });
 }
 
+/**
+ * 오늘 날짜(한국 기준) "YYYY-MM-DD".
+ * Worker 와 D1 은 UTC 로 도는데, 상담일지에 찍히는 날짜는 한국 날짜여야 한다.
+ * 그냥 toISOString() 을 쓰면 한국시간 밤 9시부터 자정까지 하루 전 날짜가 찍힌다.
+ */
 function todayISO() {
-  return new Date().toISOString().slice(0, 10);
+  return new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10);
 }
 
 /* ============================================================

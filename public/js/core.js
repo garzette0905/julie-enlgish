@@ -238,6 +238,57 @@ export function formatDateKr(iso) {
   return `${y}년 ${m}월 ${d}일 (${dow})`;
 }
 
+/* ---------- 한국시간으로 보여주기 ----------
+   DB(D1)는 시각을 UTC 로 남긴다. 'YYYY-MM-DD HH:MM:SS' 형태에 시간대 표시가 없어서
+   그대로 화면에 뿌리면 한국시간보다 9시간 뒤처져 보이고, 밤 9시 이후에는 날짜까지
+   하루 어긋난다. 화면에 낼 때는 반드시 아래 함수를 거친다.
+
+   저장은 계속 UTC 로 둔다 — 세션 만료·중복 접수 검사처럼 DB 안에서 시각끼리
+   비교하는 곳이 여럿이라, 그쪽이 어긋나지 않으려면 기준이 하나여야 한다. */
+
+const KST = "Asia/Seoul";
+
+/** D1 이 준 UTC 문자열을 Date 로 바꾼다. 못 읽으면 null. */
+function parseSqlUtc(sqlDateTime) {
+  if (!sqlDateTime) return null;
+  const t = Date.parse(String(sqlDateTime).replace(" ", "T") + "Z");
+  return Number.isNaN(t) ? null : new Date(t);
+}
+
+function kstParts(date) {
+  const parts = new Intl.DateTimeFormat("ko-KR", {
+    timeZone: KST,
+    year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit", hour12: false,
+  }).formatToParts(date);
+  const get = (type) => (parts.find((p) => p.type === type) || {}).value || "";
+  // 자정을 24 로 주는 환경이 있어 00 으로 맞춘다.
+  const hour = get("hour") === "24" ? "00" : get("hour");
+  return { y: get("year"), m: get("month"), d: get("day"), hh: hour, mm: get("minute") };
+}
+
+/** "2026-08-23" — 보는 사람이 어느 나라에 있든 한국 날짜로 나온다. */
+export function kstDate(sqlDateTime) {
+  const date = parseSqlUtc(sqlDateTime);
+  if (!date) return "";
+  const { y, m, d } = kstParts(date);
+  return `${y}-${m}-${d}`;
+}
+
+/** "2026-08-23 00:01" */
+export function kstDateTime(sqlDateTime) {
+  const date = parseSqlUtc(sqlDateTime);
+  if (!date) return "";
+  const { y, m, d, hh, mm } = kstParts(date);
+  return `${y}-${m}-${d} ${hh}:${mm}`;
+}
+
+/** 오늘 날짜(한국 기준) "2026-08-23" — 입력칸 기본값에 쓴다. */
+export function todayKst() {
+  const { y, m, d } = kstParts(new Date());
+  return `${y}-${m}-${d}`;
+}
+
 /* ---------- 값 읽기 도우미 ---------- */
 
 /** 폼 안의 name 이 붙은 입력칸을 한 번에 객체로 모은다. */

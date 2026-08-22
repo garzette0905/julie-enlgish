@@ -14,7 +14,7 @@ const TABS = [
   { key: "students", label: "학원생 관리" },
   { key: "classes", label: "클래스 관리" },
   { key: "timetable", label: "시간표 관리" },
-  { key: "media", label: "학원 안내" },
+  { key: "media", label: "학원 소식" },
   { key: "alumni", label: "졸업생 관리" },
   { key: "settings", label: "사이트 설정" },
 ];
@@ -799,7 +799,7 @@ function openEventModal(ev, classes, reload) {
 }
 
 /* ============================================================
-   학원 안내 — 사진 / 동영상
+   학원 소식 — 사진 / 동영상
    ============================================================ */
 
 async function adminMedia(body) {
@@ -1152,35 +1152,58 @@ function openAlumniModal(a, reload) {
    ============================================================ */
 
 const SETTING_FIELDS = [
-  ["notice_banner", "홈 상단 모집 배너", "개강 3월 첫 주 · 신규 파닉스반 모집 중 (5명 선착순)"],
+  ["notice_banner", "홈 상단 모집 배너", "9월 개강 · 신규 파닉스반 모집 중"],
   ["phone", "대표 전화", "031-8005-9439"],
   ["mobile", "휴대폰", "010-3323-9439"],
   ["email", "이메일", "garzetta@hanmail.net"],
   ["address", "위치", "초당마을 삼부르네상스아파트 상가동 204호"],
-  ["kakao", "카카오 채널", "Julie English"],
+  ["kakao", "카카오 채널 이름", "Julie English"],
+  ["kakao_url", "카카오 채널 주소", "https://pf.kakao.com/_xgxgvaj"],
 ];
+
+const isUrl = (v) => /^https?:\/\/\S+$/i.test(String(v || "").trim());
 
 async function adminSettings(body) {
   body.innerHTML = `<div class="loading">불러오는 중…</div>`;
   let settings = {};
+  let updated = {};
   try {
     const r = await apiGet("public/settings");
     settings = r.settings || {};
+    updated = r.updated || {};
   } catch { /* 무시 */ }
 
   body.innerHTML = `
     <div class="card pad">
       <form id="set-form" novalidate>
         ${SETTING_FIELDS.map(
-          ([key, label, ph]) => `<div class="field">
+          ([key, label, ph]) => `<div class="field" data-key="${key}">
             <label>${esc(label)}</label>
             <input name="${key}" type="text" value="${esc(settings[key] || "")}" placeholder="${esc(ph)}">
+            <div class="open-link"></div>
           </div>`
         ).join("")}
-        <div class="hint" style="margin-bottom:14px">배너를 비워 두면 홈 화면에서 배너 줄이 사라집니다.</div>
+        <div class="hint" style="margin-bottom:14px">
+          배너를 비워 두면 홈 화면에서 배너 줄이 사라집니다.
+          배너 문구를 바꾸면 <b style="color:var(--red)">14일 동안 NEW 표시</b>가 붙습니다.
+          ${bannerNewNote(updated.notice_banner)}
+        </div>
         <button class="btn red" type="submit" id="set-save">저장</button>
       </form>
     </div>`;
+
+  // 값이 주소면 바로 열어볼 수 있게 링크를 달아 준다 (입력하는 즉시 갱신).
+  const syncLinks = () => {
+    for (const field of $$(".field[data-key]", body)) {
+      const input = $("input", field);
+      const slot = $(".open-link", field);
+      slot.innerHTML = isUrl(input.value)
+        ? `<a href="${esc(input.value.trim())}" target="_blank" rel="noopener noreferrer">${esc(input.value.trim())} ↗</a>`
+        : "";
+    }
+  };
+  syncLinks();
+  $("#set-form", body).addEventListener("input", syncLinks);
 
   $("#set-form", body).addEventListener("submit", async (e) => {
     e.preventDefault();
@@ -1192,11 +1215,22 @@ async function adminSettings(body) {
       await apiPut("admin/settings", { settings: d });
       clearCache();
       toast("저장했습니다.");
+      adminSettings(body); // NEW 표시 안내를 최신 상태로 다시 그린다
     } catch (err) {
       toast(err.message, true);
-    } finally {
       btn.disabled = false;
       btn.textContent = "저장";
     }
   });
+}
+
+/** 배너가 아직 NEW 로 보이는 중이면 언제까지인지 알려 준다. */
+function bannerNewNote(sqlDateTime) {
+  if (!sqlDateTime) return "";
+  const t = Date.parse(String(sqlDateTime).replace(" ", "T") + "Z");
+  if (Number.isNaN(t)) return "";
+  const until = t + 14 * 24 * 60 * 60 * 1000;
+  if (until < Date.now()) return "";
+  const d = new Date(until);
+  return `<br>지금 배너는 <b>${d.getFullYear()}년 ${d.getMonth() + 1}월 ${d.getDate()}일</b>까지 NEW 로 표시됩니다.`;
 }

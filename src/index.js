@@ -519,10 +519,15 @@ async function myClasses(env, me) {
    ============================================================ */
 
 async function publicSettings(env) {
-  const { results } = await env.DB.prepare(`SELECT key, value FROM settings`).all();
+  const { results } = await env.DB.prepare(`SELECT key, value, updated_at FROM settings`).all();
   const out = {};
-  for (const r of results || []) out[r.key] = r.value;
-  return json({ settings: out });
+  const updated = {};
+  for (const r of results || []) {
+    out[r.key] = r.value;
+    updated[r.key] = r.updated_at;
+  }
+  // updated 는 홈 배너의 "NEW" 표시(바뀐 지 14일)를 계산하는 데 쓴다.
+  return json({ settings: out, updated });
 }
 
 async function publicClasses(env) {
@@ -1130,11 +1135,18 @@ async function saveSettings(request, env) {
   const b = await readJson(request);
   const entries = Object.entries(b.settings || {});
   for (const [key, value] of entries) {
+    const next = value === null || value === undefined ? null : String(value);
+    const cur = await env.DB.prepare(`SELECT value FROM settings WHERE key = ?1`).bind(key).first();
+
+    // 값이 그대로면 아예 건드리지 않는다. updated_at 이 갱신되면 홈 배너의
+    // "NEW" 표시가 내용도 안 바뀐 채 되살아나기 때문이다.
+    if (cur && (cur.value === null ? null : String(cur.value)) === next) continue;
+
     await env.DB.prepare(
       `INSERT INTO settings (key, value, updated_at) VALUES (?1, ?2, datetime('now'))
        ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = datetime('now')`
     )
-      .bind(key, value === null || value === undefined ? null : String(value))
+      .bind(key, next)
       .run();
   }
   return json({ ok: true });

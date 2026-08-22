@@ -60,7 +60,14 @@ function currentPath() {
   return raw && raw.startsWith("/") ? raw : "/";
 }
 
+/* 화면을 그릴 때마다 번호를 하나씩 올린다.
+   메뉴를 빠르게 연달아 누르면 앞 화면이 아직 서버 응답을 기다리는 중일 수 있는데,
+   그 사이 화면이 바뀌면 앞 화면의 뒷정리(요소 찾기·이벤트 연결)가 실패한다.
+   번호가 달라졌으면 이미 지나간 화면이므로 결과를 화면에 쓰지 않는다. */
+let renderToken = 0;
+
 async function render() {
+  const token = ++renderToken;
   const path = currentPath();
   syncMenu(path);
   window.scrollTo({ top: 0, behavior: "instant" in window ? "instant" : "auto" });
@@ -84,6 +91,8 @@ async function render() {
     </div></div>`;
   } catch (e) {
     console.error(e);
+    // 이미 다른 화면으로 넘어간 뒤라면, 지나간 화면의 오류로 새 화면을 덮지 않는다.
+    if (token !== renderToken) return;
     view.innerHTML = `<div class="section"><div class="wrap">
       <div class="empty">${esc(e.message || "화면을 여는 중 문제가 생겼습니다.")}</div>
     </div></div>`;

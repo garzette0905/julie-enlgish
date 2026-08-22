@@ -1,6 +1,6 @@
 /**
  * 로그인 없이 볼 수 있는 화면들
- *   학원소개(홈) · 시간표 안내 · 졸업생 소개 · 학원 안내
+ *   학원소개(홈) · 시간표 안내 · 졸업생 소개 · 학원 소식
  */
 import {
   $, $$, html, esc, apiGet,
@@ -9,14 +9,28 @@ import {
 } from "./core.js";
 
 /* 여러 화면이 같이 쓰는 값들은 한 번만 받아서 들고 있는다. */
-let cache = { settings: null, classes: null };
+let cache = { settings: null, updated: null, classes: null };
 
 export async function getSettings() {
   if (!cache.settings) {
-    const { settings } = await apiGet("public/settings");
+    const { settings, updated } = await apiGet("public/settings");
     cache.settings = settings || {};
+    cache.updated = updated || {};
   }
   return cache.settings;
+}
+
+/** 홈 배너 문구가 마지막으로 바뀐 시각 (D1 이 주는 'YYYY-MM-DD HH:MM:SS' UTC) */
+function bannerUpdatedAt() {
+  return (cache.updated && cache.updated.notice_banner) || null;
+}
+
+/** 그 시각이 지금으로부터 days 일 안쪽인지 */
+function withinDays(sqlDateTime, days) {
+  if (!sqlDateTime) return false;
+  const t = Date.parse(String(sqlDateTime).replace(" ", "T") + "Z");
+  if (Number.isNaN(t)) return false;
+  return Date.now() - t < days * 24 * 60 * 60 * 1000;
 }
 export async function getClasses(force = false) {
   if (!cache.classes || force) {
@@ -26,7 +40,7 @@ export async function getClasses(force = false) {
   return cache.classes;
 }
 export function clearCache() {
-  cache = { settings: null, classes: null };
+  cache = { settings: null, updated: null, classes: null };
 }
 
 /* ============================================================
@@ -46,7 +60,7 @@ export async function renderHome(view) {
           <h1>Julie&rsquo;s English Academy<span class="kr">쥴리 잉글리쉬 영어교습소</span></h1>
           <p class="lead">
             재미있는 파닉스, 읽기가 되는 파닉스부터 초·중·고 내신 선행까지.
-            동백에서 19년째, 한 아이를 오래 지켜보며 가르칩니다.
+            동백에서 2007년부터 수업을 해오는 중이며, 한 아이를 오래 지켜보면서 가르칩니다.
           </p>
           <div class="hero-actions">
             <a class="btn" href="#/timetable">시간표 보기</a>
@@ -60,7 +74,11 @@ export async function renderHome(view) {
   `));
 
   if (banner) {
-    view.append(html(`<div class="notice-strip">${esc(banner)}</div>`));
+    // 배너 문구가 바뀐 지 14일 안이면 NEW 를 붙여 눈에 띄게 한다.
+    const isNew = withinDays(bannerUpdatedAt(), 14);
+    view.append(html(`<div class="notice-strip">
+      ${isNew ? `<span class="new-badge">NEW</span>` : ""}${esc(banner)}
+    </div>`));
   }
 
   view.append(html(`
@@ -68,7 +86,7 @@ export async function renderHome(view) {
       <div class="wrap">
         <div class="section-head">
           <span class="eyebrow">Why Julie&rsquo;s</span>
-          <h2>19년 전통의 검증된 영어 전문가</h2>
+          <h2>2007년부터 시작된 동백의 영어 전문가</h2>
           <p>2007년부터 동백에서 이어온 지도 경험, 그리고 분당 정자동 영어유치원·어학원 티칭 경력.</p>
         </div>
         <div class="feature-grid">
@@ -84,8 +102,8 @@ export async function renderHome(view) {
           </div>
           <div class="feature">
             <span class="num">03</span>
-            <h3>English Only 수업</h3>
-            <p>수업 시간에는 영어만 씁니다. 온라인·오프라인 수업을 연계해 감각을 유지합니다.</p>
+            <h3>English 수업</h3>
+            <p>수업 시간에 영어와 병행해서 수업을 진행합니다. 영어 말하는 감각을 유지합니다.</p>
           </div>
           <div class="feature">
             <span class="num">04</span>
@@ -108,9 +126,9 @@ export async function renderHome(view) {
             <ul>
               <li>월·수·금 &mdash; 60분 수업</li>
               <li>화·목 &mdash; 90분 수업</li>
-              <li>온라인 / 오프라인 수업 연계</li>
+              <li>오프라인 중심 수업</li>
               <li>주 5일 과제 부여</li>
-              <li class="hi">English Only 수업</li>
+              <li class="hi">English Speaking 병행 수업</li>
             </ul>
           </div>
           <div class="info-col red">
@@ -131,8 +149,8 @@ export async function renderHome(view) {
       <div class="wrap">
         <div class="section-head">
           <span class="eyebrow">Curriculum</span>
-          <h2>세 가지 과정</h2>
-          <p>아이의 지금 수준에서 시작해, 다음 단계로 자연스럽게 넘어갑니다.</p>
+          <h2>4개 과정 제공</h2>
+          <p>학생의 현재 수준을 업그레이드하여 다음 단계로 발전하는 모습을 볼 수 있습니다.</p>
         </div>
         <div class="course-grid">
           <div class="course">
@@ -147,6 +165,10 @@ export async function renderHome(view) {
             <h3>선행 중등 과정</h3>
             <p>중등 문법과 독해를 미리. 내신 시험 대비까지 이어집니다.</p>
           </div>
+          <div class="course">
+            <h3>선행 고등 과정</h3>
+            <p>고등 문법·독해와 내신 대비까지. 고등 진학 전에 흐름을 잡습니다.</p>
+          </div>
         </div>
       </div>
     </section>
@@ -155,7 +177,7 @@ export async function renderHome(view) {
       <div class="wrap">
         <div class="section-head">
           <span class="eyebrow">Result</span>
-          <h2>매년 명문대 / 명문고 합격생 배출</h2>
+          <h2>매년 명문고, 명문대 합격생 배출<br><span class="h2-sub">(동탄국제고, 화성고, 계원예고, 북일고, 세마고 등)</span></h2>
         </div>
         <div class="achieve">
           <div class="item">
@@ -171,9 +193,10 @@ export async function renderHome(view) {
             <div class="lbl">명문고·명문대 합격생의 평균 수강 기간</div>
           </div>
         </div>
-        <p style="text-align:center;margin-top:22px">
-          <a class="btn ghost" href="#/alumni">졸업생 소개 보기</a>
-        </p>
+
+        <h3 class="sub-head">졸업생 소개</h3>
+        <p class="sub-lead">최소 5년에서 최대 9년까지 꾸준히 함께한 학생들이 만들어낸 결과입니다.</p>
+        <div class="alumni-grid" id="home-alumni"><div class="loading">불러오는 중…</div></div>
       </div>
     </section>
 
@@ -192,25 +215,58 @@ export async function renderHome(view) {
   `));
 
   renderContactGrid($("#home-contact", view), settings);
+
+  // Result 섹션 안에 졸업생 명단을 그대로 펼쳐 보여준다.
+  // ("졸업생 소개" 메뉴는 그대로 두고, 홈에서도 바로 보이게 한 것)
+  loadAlumniInto($("#home-alumni", view));
+}
+
+/* 졸업생 카드 — 홈의 Result 섹션과 졸업생 소개 화면이 같이 쓴다. */
+function alumniCardHtml(a) {
+  return `<div class="alumni-card">
+    ${a.year ? `<div class="yr">${esc(a.year)}</div>` : ""}
+    <div class="nm">${esc(a.name)}</div>
+    <div class="dest">${esc(a.dest || "")}</div>
+    ${a.years ? `<div class="yrs">${esc(a.years)}</div>` : ""}
+    ${a.note ? `<div class="note">${esc(a.note)}</div>` : ""}
+  </div>`;
+}
+
+async function loadAlumniInto(root) {
+  if (!root) return;
+  try {
+    const { alumni } = await apiGet("public/alumni");
+    root.innerHTML =
+      alumni && alumni.length
+        ? alumni.map(alumniCardHtml).join("")
+        : `<div class="empty">아직 등록된 졸업생이 없습니다.</div>`;
+  } catch (e) {
+    root.innerHTML = `<div class="empty">${esc(e.message)}</div>`;
+  }
 }
 
 function renderContactGrid(root, s) {
   if (!root) return;
   const items = [
-    ["Office", s.phone, `tel:${(s.phone || "").replace(/-/g, "")}`],
-    ["Mobile", s.mobile, `tel:${(s.mobile || "").replace(/-/g, "")}`],
-    ["E-mail", s.email, `mailto:${s.email || ""}`],
-    ["카카오 채널", s.kakao, null],
-    ["위치", s.address, null],
+    ["Office", s.phone, `tel:${(s.phone || "").replace(/-/g, "")}`, false],
+    ["Mobile", s.mobile, `tel:${(s.mobile || "").replace(/-/g, "")}`, false],
+    ["E-mail", s.email, `mailto:${s.email || ""}`, false],
+    ["카카오 채널", s.kakao, s.kakao_url || null, true],
+    ["위치", s.address, null, false],
   ].filter(([, v]) => v);
 
   root.innerHTML = items
-    .map(
-      ([k, v, href]) => `<div class="contact-item">
+    .map(([k, v, href, kakao]) => {
+      const icon = kakao ? `<img class="kakao-icon" src="/assets/kakao-channel.png" alt="">` : "";
+      // 카카오는 채널 주소가 외부 링크라 새 탭으로 연다.
+      const inner = href
+        ? `<a href="${esc(href)}"${kakao ? ` target="_blank" rel="noopener noreferrer"` : ""}>${icon}${esc(v)}</a>`
+        : `${icon}${esc(v)}`;
+      return `<div class="contact-item">
         <div class="k">${esc(k)}</div>
-        <div class="v">${href ? `<a href="${esc(href)}">${esc(v)}</a>` : esc(v)}</div>
-      </div>`
-    )
+        <div class="v">${inner}</div>
+      </div>`;
+    })
     .join("");
 }
 
@@ -225,7 +281,15 @@ export async function fillFooter() {
     ["이메일", s.email],
     ["위치", s.address],
   ].filter(([, v]) => v);
-  el.innerHTML = rows.map(([k, v]) => `<div><span>${esc(k)}</span> ${esc(v)}</div>`).join("");
+
+  let out = rows.map(([k, v]) => `<div><span>${esc(k)}</span> ${esc(v)}</div>`).join("");
+  if (s.kakao && s.kakao_url) {
+    out += `<div><span>카카오</span>
+      <a class="kakao-link" href="${esc(s.kakao_url)}" target="_blank" rel="noopener noreferrer">
+        <img class="kakao-icon" src="/assets/kakao-channel.png" alt="">${esc(s.kakao)}
+      </a></div>`;
+  }
+  el.innerHTML = out;
 }
 
 /* ============================================================
@@ -259,6 +323,11 @@ export async function renderTimetable(view) {
   `));
 
   const classes = await getClasses();
+
+  // 클래스를 받아오는 사이에 사용자가 다른 메뉴로 넘어갔을 수 있다.
+  // 그러면 아래에서 찾을 요소들이 이미 사라지고 없으므로 조용히 그만둔다.
+  if (!$("#calendar", view)) return;
+
   renderWeekGrid($("#week-grid", view), classes);
 
   const today = new Date();
@@ -277,6 +346,12 @@ export async function renderTimetable(view) {
   const onPick = (iso) => {
     state.selected = iso;
     redraw();
+    // 좁은 화면에서는 달력이 화면을 다 채워서, 눌러도 아래 상세가 안 보인다.
+    // 고른 날짜의 상세로 부드럽게 내려준다.
+    const list = $("#day-list", view);
+    if (list && window.matchMedia("(max-width: 900px)").matches) {
+      list.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
   };
   const reload = async () => {
     const monthKey = `${state.year}-${String(state.month + 1).padStart(2, "0")}`;
@@ -356,22 +431,22 @@ function drawCalendar(view, state, classes, onPick) {
     const cls = classesOnDate(classes, iso);
     const evs = eventsByDate[iso] || [];
 
+    // 일정과 수업을 전부 보여준다 (예전처럼 "+2" 로 접지 않는다).
+    // 좁은 화면에서는 CSS 가 수업 이름을 감추고 시작 시간만 남긴다.
     const pills = [];
-    for (const ev of evs.slice(0, 2)) {
-      pills.push(`<span class="pill ev">${esc(ev.title)}</span>`);
+    for (const ev of evs) {
+      pills.push(`<span class="pill ev"><em>${esc(ev.title)}</em></span>`);
     }
-    for (const c of cls.slice(0, Math.max(0, 2 - pills.length))) {
+    for (const c of cls) {
       pills.push(
-        `<span class="pill" style="background:${esc(c.color || "#0C3190")}">${esc(c.start_time)} ${esc(c.name)}</span>`
+        `<span class="pill" style="background:${esc(c.color || "#0C3190")}">` +
+          `<i>${esc(c.start_time)}</i><em>${esc(c.name)}</em></span>`
       );
     }
-    const total = evs.length + cls.length;
-    const moreCount = total - pills.length;
 
     cells.push(`<button type="button" class="day${dow === 0 ? " sun" : dow === 6 ? " sat" : ""}${iso === todayIso ? " today" : ""}${iso === state.selected ? " selected" : ""}" data-date="${iso}">
       <span class="dnum">${d}</span>
       ${pills.join("")}
-      ${moreCount > 0 ? `<span class="more">+${moreCount}</span>` : ""}
     </button>`);
   }
 
@@ -465,38 +540,18 @@ export async function renderAlumni(view) {
     </div></section>
   `));
 
-  try {
-    const { alumni } = await apiGet("public/alumni");
-    const root = $("#alumni-grid", view);
-    if (!alumni || !alumni.length) {
-      root.outerHTML = `<div class="empty">아직 등록된 졸업생이 없습니다.</div>`;
-      return;
-    }
-    root.innerHTML = alumni
-      .map(
-        (a) => `<div class="alumni-card">
-          ${a.year ? `<div class="yr">${esc(a.year)}</div>` : ""}
-          <div class="nm">${esc(a.name)}</div>
-          <div class="dest">${esc(a.dest || "")}</div>
-          ${a.years ? `<div class="yrs">${esc(a.years)}</div>` : ""}
-          ${a.note ? `<div class="note">${esc(a.note)}</div>` : ""}
-        </div>`
-      )
-      .join("");
-  } catch (e) {
-    $("#alumni-grid", view).outerHTML = `<div class="empty">${esc(e.message)}</div>`;
-  }
+  await loadAlumniInto($("#alumni-grid", view));
 }
 
 /* ============================================================
-   학원 안내 — 사진 / 동영상
+   학원 소식 — 사진 / 동영상
    ============================================================ */
 
 export async function renderAbout(view) {
   view.innerHTML = "";
   view.append(html(`
     <div class="page-head"><div class="wrap">
-      <h1>학원 안내</h1>
+      <h1>학원 소식</h1>
       <p>수업 모습과 학원 공간을 사진·영상으로 소개합니다.</p>
     </div></div>
     <section class="section"><div class="wrap">

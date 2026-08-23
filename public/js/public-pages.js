@@ -278,9 +278,11 @@ async function loadAlumniInto(root) {
    글을 쓰거나 고치는 일은 /reviews 화면에서만 한다. 여기서는 최근 것만 보여준다.
    ============================================================ */
 
-const HOME_REVIEW_COUNT = 6;
+/* 홈에 얹는 후기 개수. 관리자 "후기 순서" 화면이 여기까지 선을 그어 주므로
+   두 곳이 어긋나지 않게 내보내서 같이 쓴다. */
+export const HOME_REVIEW_COUNT = 6;
 
-const reviewPhotoUrl = (key) => `/api/media/file/${key.split("/").map(encodeURIComponent).join("/")}`;
+export const reviewPhotoUrl = (key) => `/api/media/file/${key.split("/").map(encodeURIComponent).join("/")}`;
 
 function reviewMiniCardHtml(r) {
   const cover = (r.photos || [])[0];

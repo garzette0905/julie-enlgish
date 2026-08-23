@@ -400,6 +400,7 @@ async function route(request, env, url) {
     }
     // 끌어서 바꾼 순서를 한 번에 저장한다. id 를 받는 갈래보다 먼저 걸러야 한다.
     if (b === "media" && c === "reorder" && method === "PUT") return reorderMedia(request, env);
+    if (b === "reviews" && c === "reorder" && method === "PUT") return reorderReviews(request, env);
     if (b === "media" && c) {
       if (method === "PATCH") return updateMedia(request, env, c);
       if (method === "DELETE") return deleteMedia(env, c);
@@ -1382,11 +1383,31 @@ async function updateAlumni(request, env, id) {
 const MAX_REVIEW_PHOTOS = 5;
 const MAX_REVIEW_PHOTO_BYTES = 10 * 1024 * 1024; // 사진 한 장 10MB
 
+/** 후기가 새로 들어갈 자리 — 지금 목록의 맨 위. */
+async function nextReviewSort(env) {
+  const row = await env.DB.prepare(`SELECT MIN(sort_order) AS m FROM reviews`).first();
+  const min = row && row.m !== null && row.m !== undefined ? Number(row.m) : 0;
+  return (Number.isFinite(min) ? min : 0) - 1;
+}
+
+/** 끌어서 바꾼 후기 순서를 받아 0, 1, 2 … 로 다시 매긴다. */
+async function reorderReviews(request, env) {
+  const b = await readJson(request);
+  const ids = (Array.isArray(b.ids) ? b.ids : []).map(Number).filter(Number.isInteger);
+  if (!ids.length) throw bad("바뀐 순서를 받지 못했습니다.");
+  await env.DB.batch(
+    ids.map((id, i) =>
+      env.DB.prepare(`UPDATE reviews SET sort_order = ?1 WHERE id = ?2`).bind(i, id)
+    )
+  );
+  return json({ ok: true, saved: ids.length });
+}
+
 /** 후기 목록 — 사진까지 붙여서 한 번에 내려준다. */
 async function listReviews(env) {
   const { results } = await env.DB.prepare(
     `SELECT id, author_role, author_name, title, body, created_at, updated_at
-       FROM reviews ORDER BY created_at DESC, id DESC`
+       FROM reviews ORDER BY sort_order, created_at DESC, id DESC`
   ).all();
   const reviews = results || [];
   if (!reviews.length) return json({ reviews: [] });
@@ -1465,10 +1486,17 @@ async function createReview(request, env) {
   }
 
   const res = await env.DB.prepare(
-    `INSERT INTO reviews (author_role, author_name, title, body, password_hash)
-     VALUES (?1, ?2, ?3, ?4, ?5)`
+    `INSERT INTO reviews (author_role, author_name, title, body, password_hash, sort_order)
+     VALUES (?1, ?2, ?3, ?4, ?5, ?6)`
   )
-    .bind(isAdmin ? "admin" : "guest", authorName, title, body, hash)
+    .bind(
+      isAdmin ? "admin" : "guest",
+      authorName,
+      title,
+      body,
+      hash,
+      await nextReviewSort(env)
+    )
     .run();
 
   const id = res.meta.last_row_id;

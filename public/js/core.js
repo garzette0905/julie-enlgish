@@ -292,6 +292,73 @@ export function todayKst() {
 /* ---------- 값 읽기 도우미 ---------- */
 
 /** 폼 안의 name 이 붙은 입력칸을 한 번에 객체로 모은다. */
+/* ============================================================
+   끌어서 순서 바꾸기
+
+   HTML5 drag&drop 은 휴대폰·태블릿에서 아예 동작하지 않아서, 마우스와 손가락을
+   같이 다루는 pointer 이벤트로 직접 옮긴다. 손잡이를 잡았을 때만 움직이므로
+   카드 안의 수정·삭제 버튼은 그대로 눌린다.
+
+   놓는 순간 화면은 이미 바뀐 순서이므로 다시 그리지 않고, 새 순서만 넘겨준다.
+
+   axis  "x" 격자로 늘어선 카드(사진·동영상) — 지나는 카드의 좌우 가운데로 판단
+         "y" 위아래로 쌓인 카드(후기)     — 지나는 카드의 위아래 가운데로 판단
+   ============================================================ */
+export function enableDragSort(container, { item, grip, axis = "y", onOrder }) {
+  if (!container) return;
+
+  const ids = () => $$(item, container).map((el) => Number(el.dataset.id));
+  let card = null;
+  let before = null; // 끌기 전 순서 — 제자리에 놓으면 저장하지 않는다
+
+  container.addEventListener("pointerdown", (e) => {
+    const handle = e.target.closest(grip);
+    if (!handle || !container.contains(handle)) return;
+    card = handle.closest(item);
+    if (!card) return;
+    before = ids().join(",");
+    // 손잡이가 아니라 바깥 상자를 붙잡는다. 카드는 끌리는 동안 자리를 옮겨 다니는데,
+    // 움직이는 element 에 붙은 붙잡기는 브라우저마다 도중에 풀려 버린다.
+    // 붙잡기에 실패해도 상자에 걸어 둔 pointermove 는 그대로 들어오므로 계속 간다.
+    try {
+      container.setPointerCapture(e.pointerId);
+    } catch {
+      /* 붙잡을 수 없는 포인터면 그냥 둔다 */
+    }
+    card.classList.add("dragging");
+    e.preventDefault();
+  });
+
+  container.addEventListener("pointermove", (e) => {
+    if (!card) return;
+    e.preventDefault();
+    // 끌고 있는 카드는 pointer-events 를 껐으므로, 아래에 깔린 카드가 잡힌다.
+    const under = document.elementFromPoint(e.clientX, e.clientY);
+    const over = under && under.closest ? under.closest(item) : null;
+    if (!over || over === card || !container.contains(over)) return;
+    const r = over.getBoundingClientRect();
+    const past =
+      axis === "x" ? e.clientX - r.left > r.width / 2 : e.clientY - r.top > r.height / 2;
+    over.insertAdjacentElement(past ? "afterend" : "beforebegin", card);
+  });
+
+  const drop = async (e) => {
+    if (!card) return;
+    card.classList.remove("dragging");
+    card = null;
+    try {
+      container.releasePointerCapture(e.pointerId);
+    } catch {
+      /* 이미 풀렸으면 그대로 둔다 */
+    }
+    const next = ids();
+    if (next.join(",") === before) return; // 제자리에 놓았다
+    await onOrder(next);
+  };
+  container.addEventListener("pointerup", drop);
+  container.addEventListener("pointercancel", drop);
+}
+
 export function readForm(root) {
   const out = {};
   for (const el of $$("[name]", root)) {

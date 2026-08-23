@@ -3,12 +3,14 @@
  * 원장님(role=admin)만 들어올 수 있다.
  */
 import {
-  $, $$, html, esc, api, apiGet, apiPost, apiPatch, apiDelete, apiPut,
+  $, $$, html, esc, api, apiGet, apiPost, apiPatch, apiDelete, apiPut, enableDragSort,
   toast, session, refreshSession, openModal, modalFooter, confirmBox, readForm,
   DAY_CODES, DAY_KR, daysToKr, timeRange, toISODate, formatDateKr,
-  STATUS_KR, STATUS_BADGE, kstDateTime,
+  STATUS_KR, STATUS_BADGE, kstDateTime, kstDate,
 } from "./core.js";
-import { clearCache, mediaSrc, youtubeId } from "./public-pages.js";
+import {
+  clearCache, mediaSrc, youtubeId, reviewPhotoUrl, HOME_REVIEW_COUNT,
+} from "./public-pages.js";
 
 const TABS = [
   { key: "inquiries", label: "상담 요청" },
@@ -17,6 +19,7 @@ const TABS = [
   { key: "tuition", label: "원비관리" },
   { key: "classes", label: "클래스 관리" },
   { key: "media", label: "학원 소식·사진" },
+  { key: "reviews", label: "후기 순서" },
   { key: "alumni", label: "졸업생 관리" },
   { key: "settings", label: "사이트 설정" },
 ];
@@ -57,6 +60,7 @@ export async function renderAdmin(view, tab = "inquiries") {
     tuition: adminTuitionScreen,
     classes: adminClasses,
     media: adminMedia,
+    reviews: adminReviewOrder,
     alumni: adminAlumni,
     settings: adminSettings,
   };
@@ -1134,7 +1138,13 @@ async function adminMedia(body) {
         })
         .join("")}</div>`;
 
-      enableMediaDrag($(".media-grid", root));
+      // 격자로 늘어선 카드라 좌우 기준으로 끼워 넣는다.
+      enableDragSort($(".media-grid", root), {
+        item: ".media-item[data-id]",
+        grip: ".md-grip",
+        axis: "x",
+        onOrder: (ids) => saveOrder("admin/media/reorder", ids),
+      });
 
       for (const card of $$(".media-item[data-id]", root)) {
         const m = media.find((x) => String(x.id) === card.dataset.id);
@@ -1162,79 +1172,96 @@ async function adminMedia(body) {
   await load();
 }
 
-/**
- * 카드를 끌어서 순서를 바꾼다.
- *
- * HTML5 drag&drop 은 휴대폰·태블릿에서 아예 동작하지 않아서, 마우스와 손가락을
- * 같이 다루는 pointer 이벤트로 직접 옮긴다. 손잡이(⠹)를 잡았을 때만 움직이므로
- * 카드 안의 수정·삭제 버튼은 그대로 눌린다.
- *
- * 놓는 순간 화면은 이미 바뀐 순서이므로 다시 그리지 않고, 새 순서만 서버에 보낸다.
- */
-function enableMediaDrag(grid) {
-  if (!grid) return;
-
-  const order = () => $$(".media-item[data-id]", grid).map((c) => Number(c.dataset.id));
-  let card = null;
-  let before = null; // 끌기 전 순서 — 제자리에 놓으면 저장하지 않는다
-
-  grid.addEventListener("pointerdown", (e) => {
-    const grip = e.target.closest(".md-grip");
-    if (!grip || !grid.contains(grip)) return;
-    card = grip.closest(".media-item");
-    if (!card) return;
-    before = order().join(",");
-    // 손잡이가 아니라 격자를 붙잡는다. 카드는 끌리는 동안 자리를 옮겨 다니는데,
-    // 움직이는 element 에 붙은 붙잡기는 브라우저마다 도중에 풀려 버린다.
-    // 붙잡기에 실패해도 격자에 걸어 둔 pointermove 는 그대로 들어오므로 계속 간다.
-    try {
-      grid.setPointerCapture(e.pointerId);
-    } catch {
-      /* 붙잡을 수 없는 포인터면 그냥 둔다 */
-    }
-    card.classList.add("dragging");
-    e.preventDefault();
-  });
-
-  grid.addEventListener("pointermove", (e) => {
-    if (!card) return;
-    e.preventDefault();
-    // 끌고 있는 카드는 pointer-events 를 껐으므로, 아래에 깔린 카드가 잡힌다.
-    const under = document.elementFromPoint(e.clientX, e.clientY);
-    const over = under && under.closest ? under.closest(".media-item[data-id]") : null;
-    if (!over || over === card || !grid.contains(over)) return;
-    const r = over.getBoundingClientRect();
-    // 지나는 카드의 가운데를 넘었으면 그 뒤, 아니면 그 앞에 끼워 넣는다.
-    const after = e.clientX - r.left > r.width / 2;
-    over.insertAdjacentElement(after ? "afterend" : "beforebegin", card);
-  });
-
-  const drop = async (e) => {
-    if (!card) return;
-    card.classList.remove("dragging");
-    card = null;
-    try {
-      grid.releasePointerCapture(e.pointerId);
-    } catch {
-      /* 이미 풀렸으면 그대로 둔다 */
-    }
-
-    const ids = order();
-    if (ids.join(",") === before) return; // 제자리에 놓았다
-    try {
-      await apiPut("admin/media/reorder", { ids });
-      toast("순서를 저장했습니다.");
-    } catch (err) {
-      toast(err.message, true);
-    }
-  };
-  grid.addEventListener("pointerup", drop);
-  grid.addEventListener("pointercancel", drop);
+/** 끌어서 바꾼 순서를 서버에 넘긴다. 실패하면 이유를 띄운다. */
+async function saveOrder(path, ids) {
+  try {
+    await apiPut(path, { ids });
+    toast("순서를 저장했습니다.");
+  } catch (e) {
+    toast(e.message, true);
+  }
 }
 
-/* 브라우저가 <video> 로 못 여는 동영상 확장자. 서버 쪽에서도 같은 목록으로 막는다. */
-const UNPLAYABLE_VIDEO =
-  /\.(avi|wmv|mkv|flv|mpe?g|vob|asf|rm|rmvb|divx|3gp|ts|m2ts)$/i;
+/* ============================================================
+   후기 순서
+
+   후기를 쓰고·고치고·지우는 일은 "졸업생 · 학부모 후기" 화면에서 한다.
+   여기서는 순서만 바꾼다 — 같은 글을 고치는 자리가 두 곳이 되지 않게.
+
+   홈 화면은 이 목록에서 앞쪽 몇 개만 가져다 쓰기 때문에,
+   어떤 후기를 홈에 띄울지가 사실상 여기서 정해진다.
+   ============================================================ */
+
+async function adminReviewOrder(body) {
+  body.innerHTML = `
+    <div class="admin-toolbar">
+      <div class="grow" style="font-size:14px;color:var(--text-muted)">
+        손잡이 <b>⠹</b> 를 잡고 위아래로 끌어서 순서를 바꿉니다.
+        위에서 <b>${HOME_REVIEW_COUNT}개</b>가 홈 화면에 보입니다.
+        <br>글 내용을 고치거나 지우는 것은
+        <a href="/reviews" style="color:var(--navy);font-weight:600">졸업생 · 학부모 후기</a>
+        화면에서 하세요.
+      </div>
+    </div>
+    <div id="rvo-root"><div class="loading">불러오는 중…</div></div>`;
+
+  const root = $("#rvo-root", body);
+  try {
+    const { reviews } = await apiGet("reviews");
+    if (!reviews.length) {
+      root.innerHTML = `<div class="empty">아직 등록된 후기가 없습니다.</div>`;
+      return;
+    }
+
+    root.innerHTML = `<div class="rvo-list">${reviews.map(reviewOrderRow).join("")}</div>`;
+    const list = $(".rvo-list", root);
+
+    // 위아래로 쌓인 목록이라 위아래 가운데를 기준으로 끼워 넣는다.
+    enableDragSort(list, {
+      item: ".rvo-item[data-id]",
+      grip: ".rvo-grip",
+      axis: "y",
+      onOrder: async (ids) => {
+        await saveOrder("admin/reviews/reorder", ids);
+        markHomeCutoff(list);
+      },
+    });
+    markHomeCutoff(list);
+  } catch (e) {
+    root.innerHTML = `<div class="empty">${esc(e.message)}</div>`;
+  }
+}
+
+function reviewOrderRow(r) {
+  const cover = (r.photos || [])[0];
+  const oneLine = String(r.body || "").replace(/\s+/g, " ").slice(0, 90);
+  return `<div class="rvo-item" data-id="${r.id}">
+    <button type="button" class="rvo-grip" title="끌어서 순서 바꾸기" aria-label="끌어서 순서 바꾸기">⠹</button>
+    <span class="rvo-no"></span>
+    <span class="rvo-thumb">${
+      cover
+        ? `<img src="${esc(reviewPhotoUrl(cover.r2_key))}" alt="" loading="lazy">`
+        : `<span class="rvo-nophoto">사진<br>없음</span>`
+    }</span>
+    <span class="rvo-text">
+      <b>${esc(r.title || "(제목 없음)")}</b>
+      <span class="rvo-who">${esc(r.author_name)}${
+        r.author_role === "admin" ? ` <span class="badge red">원장</span>` : ""
+      } · ${esc(kstDate(r.created_at))}</span>
+      <span class="rvo-body">${esc(oneLine)}</span>
+    </span>
+  </div>`;
+}
+
+/** 몇 번째인지 다시 매기고, 홈에 보이는 곳까지 선을 그어 준다. */
+function markHomeCutoff(list) {
+  const items = $$(".rvo-item[data-id]", list);
+  items.forEach((el, i) => {
+    $(".rvo-no", el).textContent = i + 1;
+    el.classList.toggle("on-home", i < HOME_REVIEW_COUNT);
+    el.classList.toggle("home-last", i === HOME_REVIEW_COUNT - 1 && items.length > HOME_REVIEW_COUNT);
+  });
+}
 
 function openUploadModal(reload) {
   const form = html(`<form novalidate>

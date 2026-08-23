@@ -745,6 +745,78 @@ table.data .badge { white-space: nowrap; }
 .media-item .cap b { display: block; font-size: 15px; color: var(--text); }
 .media-item .cap span { display: block; font-size: 13px; color: var(--text-muted); margin-top: 3px; }
 
+/* ============================================================
+   관리자 — 후기 순서
+   순서만 바꾸는 화면이라 한 줄에 알아볼 수 있는 만큼만 담는다.
+   ============================================================ */
+.rvo-list { display: flex; flex-direction: column; gap: 8px; }
+.rvo-item {
+  display: flex; align-items: center; gap: 12px;
+  background: #fff; border: 1px solid var(--border); border-radius: 12px;
+  padding: 10px 14px 10px 10px; box-shadow: var(--shadow-sm);
+}
+
+/* 끌어서 순서를 바꾸는 손잡이.
+   touch-action:none 이 있어야 손가락으로 잡았을 때 화면이 같이 스크롤되지 않는다. */
+.rvo-grip {
+  flex: 0 0 auto; width: 30px; height: 34px; padding: 0; border: 0; border-radius: 8px;
+  background: var(--bg-tint); color: var(--navy); font-size: 15px; line-height: 1;
+  cursor: grab; touch-action: none; user-select: none;
+  display: flex; align-items: center; justify-content: center;
+  transition: background 0.14s ease, color 0.14s ease;
+}
+.rvo-grip:hover { background: var(--red); color: #fff; }
+.rvo-grip:active { cursor: grabbing; }
+
+.rvo-no {
+  flex: 0 0 auto; min-width: 22px; text-align: right;
+  font-size: 13px; font-weight: 800; color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+.rvo-thumb {
+  flex: 0 0 auto; width: 54px; height: 54px; border-radius: 8px; overflow: hidden;
+  background: var(--bg-soft); display: flex; align-items: center; justify-content: center;
+}
+.rvo-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.rvo-nophoto { font-size: 10px; line-height: 1.25; color: var(--text-faint); text-align: center; }
+
+.rvo-text { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.rvo-text b {
+  font-size: 14.5px; color: var(--text);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.rvo-who { font-size: 12px; color: var(--navy); font-weight: 600; }
+.rvo-who .badge { padding: 1px 6px; font-size: 10.5px; }
+.rvo-body {
+  font-size: 12.5px; color: var(--text-faint);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+/* 홈 화면에 실제로 보이는 줄은 살짝 도드라지게, 마지막 줄 아래에는 경계선을 그어
+   "여기까지 홈에 나온다" 를 눈으로 알 수 있게 한다. */
+.rvo-item.on-home { border-color: var(--navy-soft); }
+.rvo-item.on-home .rvo-no { color: var(--navy); }
+.rvo-item.home-last { position: relative; margin-bottom: 18px; }
+.rvo-item.home-last::after {
+  content: "여기까지 홈 화면에 보입니다";
+  position: absolute; left: 0; right: 0; bottom: -18px;
+  text-align: center; font-size: 11px; font-weight: 700; color: var(--red);
+  letter-spacing: -0.02em;
+}
+
+/* 끌리는 중인 줄. pointer-events 를 꺼야 커서 아래에 깔린 줄을 집어낼 수 있다. */
+.rvo-item.dragging {
+  pointer-events: none; opacity: 0.6;
+  outline: 2px dashed var(--red); outline-offset: -2px;
+  box-shadow: var(--shadow-md);
+}
+
+@media (max-width: 560px) {
+  .rvo-thumb { display: none; }
+  .rvo-body { display: none; }
+}
+
 /* 사진 크게 보기 */
 .lightbox {
   position: fixed; inset: 0; z-index: 200; background: rgba(6, 10, 22, 0.92);

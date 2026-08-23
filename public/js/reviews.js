@@ -1,5 +1,5 @@
 /**
- * 졸업생 · 학부모 후기
+ * 재원생 · 졸업생 · 학부모 후기
  *
  * 원장님도 쓰고, 로그인하지 않은 방문자도 쓸 수 있다.
  * 익명으로 쓴 글은 글쓴이가 정한 비밀번호로만 고치거나 지울 수 있고,
@@ -14,7 +14,7 @@ export async function renderReviews(view) {
   view.innerHTML = "";
   view.append(html(`
     <div class="page-head"><div class="wrap">
-      <h1>졸업생 · 학부모 후기</h1>
+      <h1>재원생 · 졸업생 · 학부모 후기</h1>
       <p>쥴리 잉글리쉬와 함께한 이야기를 남겨 주세요. 사진도 함께 올릴 수 있습니다.</p>
     </div></div>
     <section class="section"><div class="wrap">

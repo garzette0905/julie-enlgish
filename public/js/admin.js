@@ -1185,7 +1185,7 @@ async function saveOrder(path, ids) {
 /* ============================================================
    후기 순서
 
-   후기를 쓰고·고치고·지우는 일은 "졸업생 · 학부모 후기" 화면에서 한다.
+   후기를 쓰고·고치고·지우는 일은 "재원생 · 졸업생 · 학부모 후기" 화면에서 한다.
    여기서는 순서만 바꾼다 — 같은 글을 고치는 자리가 두 곳이 되지 않게.
 
    홈 화면은 이 목록에서 앞쪽 몇 개만 가져다 쓰기 때문에,
@@ -1199,7 +1199,7 @@ async function adminReviewOrder(body) {
         손잡이 <b>⠹</b> 를 잡고 위아래로 끌어서 순서를 바꿉니다.
         위에서 <b>${HOME_REVIEW_COUNT}개</b>가 홈 화면에 보입니다.
         <br>글 내용을 고치거나 지우는 것은
-        <a href="/reviews" style="color:var(--navy);font-weight:600">졸업생 · 학부모 후기</a>
+        <a href="/reviews" style="color:var(--navy);font-weight:600">재원생 · 졸업생 · 학부모 후기</a>
         화면에서 하세요.
       </div>
     </div>

@@ -654,7 +654,7 @@ table.data .badge { white-space: nowrap; }
 }
 
 /* ============================================================
-   졸업생 · 학부모 후기
+   재원생 · 졸업생 · 학부모 후기
    ============================================================ */
 .rv-card {
   background: #fff; border: 1px solid var(--border); border-radius: var(--radius);

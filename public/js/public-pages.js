@@ -71,7 +71,7 @@ export async function renderHome(view) {
           </p>
           <div class="hero-actions">
             <a class="btn" href="/contact">상담신청 하기</a>
-            <a class="btn outline" href="#home-reviews" id="hero-reviews">졸업생 · 학부모 후기</a>
+            <a class="btn outline" href="#home-reviews" id="hero-reviews">재원생 · 졸업생 · 학부모 후기</a>
           </div>
         </div>
         <div class="hero-logo"><img src="/assets/logo-512.png" alt="쥴리 잉글리쉬 로고"></div>
@@ -207,7 +207,7 @@ export async function renderHome(view) {
         <p class="sub-lead">최소 5년에서 최대 9년까지 꾸준히 함께한 학생들이 만들어낸 결과입니다.</p>
         <div class="alumni-grid" id="home-alumni"><div class="loading">불러오는 중…</div></div>
 
-        <h3 class="sub-head" id="home-reviews">졸업생 · 학부모 후기</h3>
+        <h3 class="sub-head" id="home-reviews">재원생 · 졸업생 · 학부모 후기</h3>
         <p class="sub-lead">쥴리 잉글리쉬와 함께한 학생·학부모님이 남겨 주신 이야기입니다.<br>
           저희 원에서 졸업생은 정규선행 프로그램을 6~8년 이상 모두 마치고 학원 차원에서 졸업을 시킨 학생들을 의미합니다.</p>
         <div class="rv-mini-grid" id="home-reviews-grid"><div class="loading">불러오는 중…</div></div>
@@ -237,7 +237,7 @@ export async function renderHome(view) {
   // 후기는 홈에서 읽기만 한다. 쓰기·수정·삭제는 /reviews 화면 몫이다.
   loadHomeReviewsInto($("#home-reviews-grid", view));
 
-  // 첫 화면의 "졸업생 · 학부모 후기" 버튼은 페이지를 옮기지 않고 아래 카드로 내려간다.
+  // 첫 화면의 "재원생 · 졸업생 · 학부모 후기" 버튼은 페이지를 옮기지 않고 아래 카드로 내려간다.
   const heroBtn = $("#hero-reviews", view);
   if (heroBtn) {
     heroBtn.addEventListener("click", (e) => {
@@ -326,7 +326,7 @@ function openReviewView(r) {
     b.addEventListener("click", () => openLightbox(b.dataset.src, "photo"));
   }
 
-  openModal({ title: "졸업생 · 학부모 후기", body, wide: true });
+  openModal({ title: "재원생 · 졸업생 · 학부모 후기", body, wide: true });
 }
 
 async function loadHomeReviewsInto(root) {

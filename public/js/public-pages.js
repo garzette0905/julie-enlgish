@@ -160,7 +160,7 @@ export async function renderHome(view) {
               <li>중고등 내신대비 지도 (청솔학원)</li>
               <li>캐나다 TESOL 수료</li>
               <li>캐나다 공립 초등학교 파닉스 수업지도</li>
-              <li>미국 공립도서관 이민자(히스패닉) 대상 회화지도</li>
+              <li>미국 공립도서관의 이민자를 위한 회화 클래스 지도</li>
               <li>영어유치원 · 어학원 16년 경력</li>
               <li class="hi">동백 Julie&rsquo;s English 19년차 (&rsquo;07년~)</li>
             </ul>

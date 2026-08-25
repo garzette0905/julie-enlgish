@@ -1,14 +1,18 @@
 /**
  * 재원생 · 졸업생 · 학부모 후기
  *
- * 원장님도 쓰고, 로그인하지 않은 방문자도 쓸 수 있다.
- * 익명으로 쓴 글은 글쓴이가 정한 비밀번호로만 고치거나 지울 수 있고,
- * 원장님은 비밀번호 없이 모든 글을 고치고 지운다.
+ * 후기는 로그인하지 않은 방문자도 쓸 수 있다.
+ * 다만 올라간 글을 고치거나 지우는 일은 원장님(관리자)만 한다 —
+ * 화면에도 원장님으로 로그인했을 때만 수정·삭제 단추가 붙고,
+ * 서버에서도 관리자가 아니면 막는다.
+ *
+ * 목록은 홈 화면과 똑같은 카드로 보여 주고, 카드를 누르면 글 전체와 사진이 창으로 뜬다.
  */
 import {
-  $, $$, html, esc, api, apiGet, apiPost, toast, session,
-  openModal, modalFooter, confirmBox, readForm, kstDate,
+  $, $$, html, esc, api, apiPost, apiGet, toast, session,
+  openModal, modalFooter, confirmBox, readForm,
 } from "./core.js";
+import { reviewMiniCardHtml, openReviewView, reviewPhotoUrl } from "./public-pages.js";
 
 export async function renderReviews(view) {
   view.innerHTML = "";
@@ -34,7 +38,10 @@ export async function renderReviews(view) {
         list.innerHTML = `<div class="empty">아직 등록된 후기가 없습니다.<br>첫 번째 후기를 남겨 주세요.</div>`;
         return;
       }
-      list.innerHTML = reviews.map(reviewCard).join("");
+      const isAdmin = session.isAdmin;
+      list.innerHTML = `<div class="rv-mini-grid">${reviews
+        .map((r) => reviewCellHtml(r, isAdmin))
+        .join("")}</div>`;
       bindCards(list, reviews, load);
     } catch (e) {
       list.innerHTML = `<div class="empty">${esc(e.message)}</div>`;
@@ -47,48 +54,31 @@ export async function renderReviews(view) {
 
 /* ---------- 목록 ---------- */
 
-const photoUrl = (key) => `/api/media/file/${key.split("/").map(encodeURIComponent).join("/")}`;
-
-function reviewCard(r) {
-  const photos = r.photos || [];
-  return `<article class="rv-card" data-id="${r.id}">
-    <div class="rv-head">
-      <div>
-        <span class="rv-author">${esc(r.author_name)}</span>
-        ${r.author_role === "admin" ? `<span class="badge red">원장</span>` : ""}
-      </div>
-      <span class="rv-date">${esc(kstDate(r.created_at))}</span>
-    </div>
-
-    ${r.title ? `<h3 class="rv-title">${esc(r.title)}</h3>` : ""}
-    <div class="rv-body">${esc(r.body)}</div>
-
-    ${photos.length
-      ? `<div class="rv-photos">${photos
-          .map(
-            (p) => `<button type="button" class="rv-photo" data-src="${esc(photoUrl(p.r2_key))}">
-              <img src="${esc(photoUrl(p.r2_key))}" alt="" loading="lazy">
-            </button>`
-          )
-          .join("")}</div>`
+/**
+ * 카드 한 장. 홈과 같은 카드를 그대로 쓰고, 원장님일 때만 아래에 수정·삭제 줄을 덧댄다.
+ * (카드 자체가 button 이라 그 안에 단추를 넣을 수 없어서 바깥 상자로 감싼다)
+ */
+function reviewCellHtml(r, isAdmin) {
+  return `<div class="rv-cell" data-id="${r.id}">
+    ${reviewMiniCardHtml(r)}
+    ${isAdmin
+      ? `<div class="rv-cell-admin">
+           <button class="btn sm ghost" type="button" data-act="edit">수정</button>
+           <button class="btn sm danger" type="button" data-act="del">삭제</button>
+         </div>`
       : ""}
-
-    <div class="rv-actions">
-      <button class="btn sm ghost" data-act="edit">수정</button>
-      <button class="btn sm danger" data-act="del">삭제</button>
-    </div>
-  </article>`;
+  </div>`;
 }
 
 function bindCards(root, reviews, reload) {
-  for (const card of $$(".rv-card[data-id]", root)) {
-    const r = reviews.find((x) => String(x.id) === card.dataset.id);
+  for (const cell of $$(".rv-cell[data-id]", root)) {
+    const r = reviews.find((x) => String(x.id) === cell.dataset.id);
+    if (!r) continue;
 
-    for (const b of $$(".rv-photo[data-src]", card)) {
-      b.addEventListener("click", () => openPhoto(b.dataset.src));
-    }
+    const card = $(".rv-mini", cell);
+    if (card) card.addEventListener("click", () => openReviewView(r));
 
-    for (const btn of $$("[data-act]", card)) {
+    for (const btn of $$("[data-act]", cell)) {
       btn.addEventListener("click", () => {
         if (btn.dataset.act === "edit") return openReviewForm(r, reload);
         return askDelete(r, reload);
@@ -97,28 +87,17 @@ function bindCards(root, reviews, reload) {
   }
 }
 
-function openPhoto(src) {
-  const box = html(`<div class="lightbox"><button class="close" type="button" aria-label="닫기">&times;</button><img src="${esc(src)}" alt=""></div>`);
-  const close = () => {
-    box.remove();
-    document.removeEventListener("keydown", onKey);
-  };
-  const onKey = (e) => e.key === "Escape" && close();
-  box.addEventListener("click", (e) => {
-    if (e.target === box) close();
-  });
-  $(".close", box).addEventListener("click", close);
-  document.addEventListener("keydown", onKey);
-  document.body.append(box);
-}
-
 /* ---------- 쓰기 / 수정 ---------- */
 
 function openReviewForm(r, reload) {
   const isNew = !r;
   const isAdmin = session.isAdmin;
-  // 원장님은 비밀번호를 쓰지 않는다. 원장님이 쓴 글도 원장님만 고칠 수 있다.
-  const needPassword = !isAdmin;
+
+  // 고치는 일은 원장님만 한다. 주소를 직접 두드려 봐도 서버가 다시 막지만,
+  // 화면에서도 여기서 한 번 걸러 준다.
+  if (!isNew && !isAdmin) {
+    return toast("후기 수정은 원장님만 할 수 있습니다.", true);
+  }
 
   const photos = (r && r.photos) || [];
 
@@ -147,7 +126,7 @@ function openReviewForm(r, reload) {
           <div class="rv-edit-photos">${photos
             .map(
               (p) => `<button type="button" class="rv-edit-photo" data-pid="${p.id}">
-                <img src="${esc(photoUrl(p.r2_key))}" alt=""><span class="x">&times;</span>
+                <img src="${esc(reviewPhotoUrl(p.r2_key))}" alt=""><span class="x">&times;</span>
               </button>`
             )
             .join("")}</div>
@@ -159,12 +138,9 @@ function openReviewForm(r, reload) {
       <input name="photos" type="file" accept="image/*" multiple>
     </div>
 
-    ${needPassword
-      ? `<div class="field">
-           <label>비밀번호 <span class="req">*</span></label>
-           <input name="password" type="password" autocomplete="off" placeholder="${isNew ? "4자 이상 · 나중에 수정할 때 필요합니다" : "글을 쓸 때 정한 비밀번호"}">
-           <div class="hint">${isNew ? "이 비밀번호가 있어야 나중에 직접 고치거나 지울 수 있습니다." : ""}</div>
-         </div>`
+    ${isNew && !isAdmin
+      ? `<div class="hint">올리신 후기는 바로 홈페이지에 올라갑니다.
+           고치거나 지울 일이 생기면 원장님께 말씀해 주세요.</div>`
       : ""}
   </form>`);
 
@@ -195,16 +171,11 @@ function openReviewForm(r, reload) {
           const d = readForm(form);
           if (isNew && !String(d.author_name || "").trim()) return toast("이름을 입력해 주세요.", true);
           if (!String(d.body || "").trim()) return toast("내용을 입력해 주세요.", true);
-          if (needPassword && !d.password) return toast("비밀번호를 입력해 주세요.", true);
-          if (needPassword && isNew && d.password.length < 4) {
-            return toast("비밀번호를 4자 이상 입력해 주세요.", true);
-          }
 
           const fd = new FormData();
           if (isNew) fd.append("author_name", d.author_name.trim());
           fd.append("title", d.title || "");
           fd.append("body", d.body.trim());
-          if (needPassword) fd.append("password", d.password);
           if (removeIds.size) fd.append("remove_photos", [...removeIds].join(","));
 
           const files = [...($("[name=photos]", form).files || [])];
@@ -232,54 +203,15 @@ function openReviewForm(r, reload) {
 /* ---------- 삭제 ---------- */
 
 async function askDelete(r, reload) {
-  // 원장님은 바로 확인만 하고 지운다.
-  if (session.isAdmin) {
-    if (!(await confirmBox(`${r.author_name}님의 후기를 삭제할까요?`))) return;
-    try {
-      await apiPost(`reviews/${r.id}/delete`, {});
-      toast("삭제했습니다.");
-      reload();
-    } catch (e) {
-      toast(e.message, true);
-    }
-    return;
+  if (!session.isAdmin) {
+    return toast("후기 삭제는 원장님만 할 수 있습니다.", true);
   }
-
-  if (r.author_role === "admin") {
-    return toast("원장님이 쓴 글은 삭제할 수 없습니다.", true);
+  if (!(await confirmBox(`${r.author_name}님의 후기를 삭제할까요?`))) return;
+  try {
+    await apiPost(`reviews/${r.id}/delete`, {});
+    toast("삭제했습니다.");
+    reload();
+  } catch (e) {
+    toast(e.message, true);
   }
-
-  const form = html(`<form novalidate>
-    <p style="margin:0 0 16px;font-size:15px">글을 쓸 때 정한 비밀번호를 입력해 주세요.</p>
-    <div class="field">
-      <label>비밀번호</label>
-      <input name="password" type="password" autocomplete="off">
-    </div>
-  </form>`);
-
-  const modal = openModal({
-    title: "후기 삭제",
-    body: form,
-    footer: modalFooter([
-      { label: "취소", cls: "ghost", onClick: () => modal.close() },
-      {
-        label: "삭제",
-        cls: "danger",
-        onClick: async (btn) => {
-          const d = readForm(form);
-          if (!d.password) return toast("비밀번호를 입력해 주세요.", true);
-          btn.disabled = true;
-          try {
-            await apiPost(`reviews/${r.id}/delete`, { password: d.password });
-            toast("삭제했습니다.");
-            modal.close();
-            reload();
-          } catch (e) {
-            toast(e.message, true);
-            btn.disabled = false;
-          }
-        },
-      },
-    ]),
-  });
 }

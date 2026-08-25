@@ -1425,16 +1425,14 @@ async function listReviews(env) {
   return json({ reviews });
 }
 
-/** 원장님이면 비밀번호 없이 통과, 아니면 글에 저장된 비밀번호와 맞는지 본다. */
-async function assertCanEditReview(request, env, row, password) {
+/**
+ * 올라간 후기를 고치거나 지우는 일은 원장님(관리자)만 한다.
+ * 화면에서도 원장님일 때만 단추가 붙지만, 주소를 직접 두드리는 경우가 있어 여기서 다시 막는다.
+ */
+async function assertCanEditReview(request, env) {
   const me = await currentUser(request, env);
   if (me && me.role === "admin") return true;
-  if (row.author_role === "admin") {
-    throw new HttpError(403, "원장님이 쓴 글은 수정하거나 삭제할 수 없습니다.");
-  }
-  if (!password) throw bad("비밀번호를 입력해 주세요.");
-  if (!(await verifyPassword(password, row.password_hash))) throw bad("비밀번호가 맞지 않습니다.");
-  return true;
+  throw new HttpError(403, "후기 수정·삭제는 원장님만 할 수 있습니다.");
 }
 
 /** 폼에서 사진 파일만 골라내 R2 에 넣고 review_photos 에 기록한다. */
@@ -1471,20 +1469,14 @@ async function createReview(request, env) {
   const authorName = norm(form.get("author_name")) || (isAdmin ? me.name : null);
   const title = norm(form.get("title"));
   const body = norm(form.get("body"));
-  const password = form.get("password") || "";
 
   if (!authorName) throw bad("이름을 입력해 주세요.");
   if (authorName.length > 30) throw bad("이름이 너무 깁니다.");
   if (!body) throw bad("내용을 입력해 주세요.");
   if (body.length > 4000) throw bad("내용이 너무 깁니다. 4000자 안으로 줄여 주세요.");
 
-  // 익명 글은 나중에 본인이 고칠 수 있도록 비밀번호를 반드시 받는다.
-  let hash = null;
-  if (!isAdmin) {
-    if (!password || password.length < 4) throw bad("비밀번호를 4자 이상 입력해 주세요.");
-    hash = await hashPassword(password);
-  }
-
+  // 수정·삭제는 원장님만 하므로 글쓴이 비밀번호는 더 받지 않는다.
+  // (password_hash 칸은 예전에 쓴 글 때문에 남겨 두고, 새 글은 비워 둔다)
   const res = await env.DB.prepare(
     `INSERT INTO reviews (author_role, author_name, title, body, password_hash, sort_order)
      VALUES (?1, ?2, ?3, ?4, ?5, ?6)`
@@ -1494,7 +1486,7 @@ async function createReview(request, env) {
       authorName,
       title,
       body,
-      hash,
+      null,
       await nextReviewSort(env)
     )
     .run();
@@ -1510,7 +1502,7 @@ async function updateReview(request, env, id) {
   const row = await env.DB.prepare(`SELECT * FROM reviews WHERE id = ?1`).bind(id).first();
   if (!row) throw new HttpError(404, "글을 찾을 수 없습니다.");
 
-  await assertCanEditReview(request, env, row, form.get("password") || "");
+  await assertCanEditReview(request, env);
 
   const title = norm(form.get("title"));
   const body = norm(form.get("body"));
@@ -1555,11 +1547,10 @@ async function updateReview(request, env, id) {
 }
 
 async function deleteReview(request, env, id) {
-  const b = await readJson(request);
   const row = await env.DB.prepare(`SELECT * FROM reviews WHERE id = ?1`).bind(id).first();
   if (!row) throw new HttpError(404, "글을 찾을 수 없습니다.");
 
-  await assertCanEditReview(request, env, row, b.password || "");
+  await assertCanEditReview(request, env);
 
   // 붙어 있던 사진 파일도 같이 치운다 (DB 행은 ON DELETE CASCADE 로 사라진다).
   const photos = await env.DB.prepare(

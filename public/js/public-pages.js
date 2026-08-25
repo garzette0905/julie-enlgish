@@ -274,8 +274,9 @@ async function loadAlumniInto(root) {
 }
 
 /* ============================================================
-   홈에 얹는 후기 카드 (조회 전용)
-   글을 쓰거나 고치는 일은 /reviews 화면에서만 한다. 여기서는 최근 것만 보여준다.
+   후기 카드 (조회 전용)
+   홈에서는 최근 것만, /reviews 화면에서는 전체를 같은 카드로 보여준다.
+   글을 쓰거나 고치는 일은 /reviews 화면 몫이라 여기서는 읽기만 다룬다.
    ============================================================ */
 
 /* 홈에 얹는 후기 개수. 관리자 "후기 순서" 화면이 여기까지 선을 그어 주므로
@@ -284,7 +285,7 @@ export const HOME_REVIEW_COUNT = 6;
 
 export const reviewPhotoUrl = (key) => `/api/media/file/${key.split("/").map(encodeURIComponent).join("/")}`;
 
-function reviewMiniCardHtml(r) {
+export function reviewMiniCardHtml(r) {
   const cover = (r.photos || [])[0];
   return `<button type="button" class="rv-mini" data-id="${r.id}">
     ${cover ? `<span class="thumb"><img src="${esc(reviewPhotoUrl(cover.r2_key))}" alt="" loading="lazy"></span>` : ""}
@@ -299,7 +300,7 @@ function reviewMiniCardHtml(r) {
 }
 
 /** 카드를 누르면 글 전체와 사진을 창으로 띄운다 (읽기만 된다). */
-function openReviewView(r) {
+export function openReviewView(r) {
   const photos = r.photos || [];
   const body = html(`<div class="rv-view">
     <div class="rv-view-meta">
@@ -351,6 +352,8 @@ async function loadHomeReviewsInto(root) {
 function renderContactGrid(root, s) {
   if (!root) return;
   const items = [
+    // 전화번호는 링크로 두되, 눌러서 걸리는 건 휴대폰·태블릿에서만이다.
+    // PC 는 눌러도 전화가 걸리지 않아 헛도는 링크가 되므로 .tel-link 로 막는다(styles.css).
     ["Office", s.phone, `tel:${(s.phone || "").replace(/-/g, "")}`],
     ["Mobile", s.mobile, `tel:${(s.mobile || "").replace(/-/g, "")}`],
     // 이메일은 링크로 걸지 않는다(메일 앱이 열리는 대신 그대로 보이게).
@@ -372,7 +375,7 @@ function renderContactGrid(root, s) {
       .map(
         ([k, v, href]) => `<div class="contact-item">
           <div class="k">${esc(k)}</div>
-          <div class="v">${href ? `<a href="${esc(href)}">${esc(v)}</a>` : esc(v)}</div>
+          <div class="v">${href ? `<a class="tel-link" href="${esc(href)}">${esc(v)}</a>` : esc(v)}</div>
         </div>`
       )
       .join("") +

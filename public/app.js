@@ -38,16 +38,19 @@ onSessionChange((user) => {
   const loginLink = $("#menu-login");
   const meLink = $("#menu-me");
   const adminLink = $(".menu-admin", menuEl);
+  const myLink = $("#menu-my");
 
   if (user) {
     loginLink.classList.add("hidden");
     meLink.classList.remove("hidden");
     meLink.textContent = user.name;
     adminLink.classList.toggle("hidden", user.role !== "admin");
+    myLink.classList.remove("hidden");
   } else {
     loginLink.classList.remove("hidden");
     meLink.classList.add("hidden");
     adminLink.classList.add("hidden");
+    myLink.classList.add("hidden");
   }
 });
 

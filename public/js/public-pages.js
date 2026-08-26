@@ -14,8 +14,7 @@ let cache = { settings: null, updated: null, classes: null };
    화면에 적는 주소는 아파트 이름이라 지도에서 바로 검색되지 않는다.
    지도는 도로명 주소(상가동 204호가 있는 건물)로 열고,
    설정에 map_url 을 넣어 두면 그 주소를 대신 쓴다. */
-const MAP_ADDRESS = "용인시 기흥구 동백1로 8";
-const DEFAULT_MAP_URL = `https://map.naver.com/p/search/${encodeURIComponent(MAP_ADDRESS)}`;
+const DEFAULT_MAP_URL = "https://map.naver.com/p/entry/place/1029976865?c=15.00,0,0,0,dh&placePath=%2Fhome%3Ffrom%3Dmap%26fromPanelNum%3D1%26additionalHeight%3D76%26timestamp%3D202608270523%26locale%3Dko%26svcName%3Dmap_pcv5";
 const mapUrl = (s) => ((s && s.map_url) || "").trim() || DEFAULT_MAP_URL;
 
 export async function getSettings() {
@@ -203,7 +202,7 @@ export async function renderHome(view) {
           <span class="eyebrow">Result</span>
           <h2>매년 명문고, 명문대 합격생 배출<br><span class="h2-sub">(동탄국제고, 화성고, 계원예고, 북일고, 세마고 등)</span></h2>
         </div>
-        <h3 class="sub-head">졸업생 소개</h3>
+        <h3 class="sub-head">주요 졸업생 소개</h3>
         <p class="sub-lead">최소 5년에서 최대 9년까지 꾸준히 함께한 학생들이 만들어낸 결과입니다.</p>
         <div class="alumni-grid" id="home-alumni"><div class="loading">불러오는 중…</div></div>
 

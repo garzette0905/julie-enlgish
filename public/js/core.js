@@ -115,6 +115,38 @@ export function navigate(path) {
   else location.assign(path);
 }
 
+/* ---------- 방문 기록 ----------
+   화면을 하나 열 때마다 서버에 조용히 알린다. 관리자 화면의 "방문 통계"가 이걸로 만들어진다.
+   쿠키를 새로 심거나 브라우저에 무언가를 저장하지 않고, 서버도 IP 원본을 남기지 않는다
+   (그날치 소금을 섞은 해시만 남는다). 그래서 방문자에게 동의를 받지 않아도 된다.
+   실패해도 화면에는 아무 일이 없어야 하므로 오류는 전부 삼킨다. */
+
+let sentReferrer = false;
+
+export function trackVisit(path) {
+  const body = { path };
+
+  // "어디를 거쳐 왔나"는 페이지를 처음 연 순간에만 뜻이 있다.
+  // 메뉴를 눌러 화면만 바꾸는 동안에도 document.referrer 는 그대로 남아 있어서,
+  // 매번 같이 보내면 한 번 들어온 방문이 유입 여러 건으로 부풀려진다.
+  if (!sentReferrer) {
+    sentReferrer = true;
+    if (document.referrer) body.ref = document.referrer;
+  }
+
+  try {
+    fetch("/api/track", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+      credentials: "same-origin",
+      keepalive: true,
+    }).catch(() => {});
+  } catch {
+    /* 통계는 없어도 그만이다 */
+  }
+}
+
 /* ---------- 토스트 ---------- */
 
 let toastTimer = null;

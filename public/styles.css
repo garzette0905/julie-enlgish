@@ -1096,6 +1096,105 @@ table.data .tu-paid, table.data .tu-pick { width: auto; margin: 0; }
 .log-item .ct { font-size: 14px; color: var(--text-muted); white-space: pre-wrap; margin-top: 5px; }
 .log-item .by { font-size: 12px; color: var(--text-faint); margin-top: 6px; }
 
+/* ---------- 관리자 — 방문 통계 ----------
+   숫자 카드 · 가로 막대 · 날짜별 세로 막대. 그림 라이브러리를 쓰지 않고
+   div 폭·높이만으로 그린다 (외부 스크립트를 하나도 더 들이지 않기 위해서다). */
+.stat-cards {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(158px, 1fr));
+  gap: 10px; margin-bottom: 16px;
+}
+.stat-card {
+  background: #fff; border: 1px solid var(--border); border-radius: var(--radius);
+  box-shadow: var(--shadow-sm); padding: 15px 16px; min-width: 0;
+}
+.stat-label { display: block; font-size: 12.5px; font-weight: 600; color: var(--text-muted); }
+.stat-value {
+  display: block; margin: 5px 0 3px; font-size: 25px; font-weight: 800;
+  color: var(--navy); letter-spacing: -0.03em; font-variant-numeric: tabular-nums;
+}
+.stat-sub2 {
+  display: block; font-size: 12px; color: var(--text-faint);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+.stat-section { margin-bottom: 14px; }
+.stat-h { font-size: 16.5px; color: var(--navy); margin: 0; }
+.stat-sub { margin: 5px 0 15px; font-size: 13px; color: var(--text-muted); }
+/* 설명 줄이 없는 칸은 제목이 표/그래프에 붙어 버린다. */
+.stat-h + .stat-grid, .stat-h + .bar-row { margin-top: 14px; }
+.stat-empty { padding: 26px 14px; text-align: center; color: var(--text-faint); font-size: 13.5px; }
+.stat-note {
+  line-height: 1.9; margin-top: 4px; padding: 14px 16px;
+  background: var(--bg-soft); border-radius: var(--radius);
+  font-size: 12.5px; color: var(--text-muted);
+}
+
+.stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 26px; }
+@media (max-width: 760px) { .stat-grid { grid-template-columns: 1fr; } }
+.stat-block { min-width: 0; }
+.stat-block h4 {
+  font-size: 13px; font-weight: 700; color: var(--text-muted);
+  margin: 0 0 9px; padding-bottom: 7px; border-bottom: 1px solid var(--border);
+}
+.stat-block + .stat-block { margin-top: 4px; }
+
+/* 가로 막대 한 줄 — 이름 / 막대 / 숫자 */
+.bar-row {
+  display: grid; grid-template-columns: minmax(70px, 34%) 1fr 74px;
+  align-items: center; gap: 10px; padding: 5px 0;
+}
+.bar-name {
+  font-size: 13.5px; color: var(--text); overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap;
+}
+.bar-track { background: var(--bg-soft); border-radius: 999px; height: 9px; overflow: hidden; }
+.bar-fill {
+  height: 100%; border-radius: 999px;
+  background: linear-gradient(90deg, var(--navy) 0%, #2f5ed0 100%);
+}
+.bar-num {
+  text-align: right; font-size: 13px; font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.bar-num b { color: var(--navy); }
+.bar-num span { color: var(--text-faint); font-size: 12px; margin-left: 5px; }
+.bar-inline {
+  font-size: 12px; color: var(--text-faint); margin-left: 8px;
+  font-variant-numeric: tabular-nums;
+}
+table.data.stat-table { min-width: 560px; }
+.bar-cell { display: flex; align-items: center; gap: 4px; }
+
+/* 날짜별 · 시간대 세로 막대 */
+.chart-days, .chart-hours {
+  display: flex; align-items: flex-end; gap: 3px;
+  height: 158px; overflow-x: auto; overflow-y: hidden; padding-bottom: 2px;
+  scrollbar-width: thin;
+}
+.chart-hours { height: 118px; }
+.chart-col {
+  flex: 1 0 14px; min-width: 14px; height: 100%;
+  display: flex; flex-direction: column; align-items: center;
+}
+/* 막대가 설 자리. 아래 날짜 글씨를 뺀 높이를 100% 로 삼는다
+   (이게 없으면 막대 + 글씨가 상자보다 커져서 세로 스크롤이 생긴다). */
+.chart-slot {
+  flex: 1; width: 100%; min-height: 0;
+  display: flex; align-items: flex-end; justify-content: center;
+}
+.chart-bar {
+  width: 100%; max-width: 26px; background: var(--navy-soft);
+  border-radius: 4px 4px 0 0; display: flex; flex-direction: column; justify-content: flex-end;
+}
+.chart-bar:hover { background: #94a4cd; }
+.chart-bar.solid { background: var(--navy); }
+.chart-bar.solid:hover { background: var(--navy-dark); }
+/* 막대 안의 진한 칸 = 그날 방문자 수가 열람 수에서 차지하는 몫 */
+.chart-bar-in { width: 100%; background: var(--navy); border-radius: 4px 4px 0 0; }
+.chart-x {
+  font-size: 10px; color: var(--text-faint); margin-top: 5px; white-space: nowrap;
+  font-variant-numeric: tabular-nums; height: 13px;
+}
+
 /* ============================================================
    푸터
    ============================================================ */

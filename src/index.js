@@ -337,6 +337,13 @@ async function route(request, env, url) {
     return createInquiry(request, env);
   }
 
+  /* ---------- 방문 기록 ----------
+     화면을 하나 볼 때마다 브라우저가 조용히 부른다.
+     동의가 필요한 정보(추적 쿠키·IP 원본·개인 정보)는 남기지 않는다. */
+  if (a === "track" && !b && method === "POST") {
+    return trackVisit(request, env);
+  }
+
   /* ---------- 재원생·졸업생·학부모 후기 (누구나 쓰고, 본인 비밀번호로 고친다) ---------- */
   if (a === "reviews") {
     if (!b && method === "GET") return listReviews(env);
@@ -431,6 +438,9 @@ async function route(request, env, url) {
       if (method === "PATCH") return adminUpdateInquiry(request, env, c);
       if (method === "DELETE") return del(env, "inquiries", c);
     }
+
+    // 방문 통계
+    if (b === "stats" && !c && method === "GET") return adminStats(env, url);
 
     // 설정
     if (b === "settings" && method === "PUT") return saveSettings(request, env);
@@ -1956,4 +1966,331 @@ async function del(env, table, id) {
   if (!DELETABLE.has(table)) throw bad("삭제할 수 없는 항목입니다.");
   await env.DB.prepare(`DELETE FROM ${table} WHERE id = ?1`).bind(id).run();
   return json({ ok: true });
+}
+
+/* ============================================================
+   방문 통계 — 누가 얼마나 들어오고, 어느 메뉴를 보는가
+
+   동의를 받아야 하는 정보는 모으지 않는다.
+     · 쿠키로 사람을 따라다니지 않는다 (추적 쿠키 없음)
+     · IP 원본을 저장하지 않는다 — 그날치 무작위 소금을 섞은 해시만 남긴다.
+       날이 바뀌면 값이 통째로 달라져서 어제 온 사람과 이어 붙일 수 없고,
+       소금은 사흘 뒤에 지우므로 되돌릴 방법도 없어진다.
+     · 이름·연락처·로그인 아이디는 통계에 넣지 않는다.
+   남기는 것은 "언제 · 어느 화면 · 휴대폰인가 PC인가 · 어디를 거쳐 왔나 · 어느 도시"
+   뿐이고, 전부 사람 단위가 아니라 숫자를 세기 위한 값이다.
+   ============================================================ */
+
+/* 화면 주소는 우리가 아는 것만 받는다.
+   모르는 주소를 그대로 넣으면 누가 /api/track 을 두드려서 아무 글자나 쌓을 수 있다. */
+const TRACK_PATHS = new Set([
+  "/", "/about", "/reviews", "/contact", "/contact/question",
+  "/login", "/signup", "/my", "/me", "/admin",
+]);
+
+/** 화면 주소를 통계용으로 다듬는다. 모르는 주소는 한 칸에 몰아 넣는다. */
+function normalizeTrackPath(raw) {
+  let p = String(raw || "/").split("?")[0].split("#")[0].trim().toLowerCase();
+  if (!p.startsWith("/")) p = "/" + p;
+  p = p.replace(/\/+$/, "") || "/";
+  // /admin/students 처럼 뒤에 더 붙는 관리자 화면은 /admin 하나로 묶는다.
+  if (p === "/admin" || p.startsWith("/admin/")) p = "/admin";
+  return TRACK_PATHS.has(p) ? p : "(기타)";
+}
+
+/* 검색로봇·미리보기 봇은 사람이 아니므로 아예 세지 않는다.
+   (대부분은 자바스크립트를 돌리지 않아서 여기까지 오지도 않는다) */
+const BOT_RE =
+  /bot\b|crawler|spider|slurp|yeti|daumoa|facebookexternalhit|externalhit|preview|monitor|uptime|curl|wget|python-requests|httpclient|headless|lighthouse|pagespeed|pingdom|semrush|ahrefs|mj12|dataprovider|bingpreview|inspectiontool/i;
+
+function deviceOf(ua) {
+  const s = ua.toLowerCase();
+  if (/ipad|tablet|playbook|silk|kindle|(android(?!.*mobi))/.test(s)) return "tablet";
+  if (/mobi|iphone|ipod|windows phone|android/.test(s)) return "mobile";
+  return "desktop";
+}
+
+/* 인앱 브라우저(카카오톡·네이버앱 등)를 먼저 걸러야 한다.
+   이들도 UA 에 Chrome / Safari 를 함께 달고 오기 때문이다. */
+function browserOf(ua) {
+  const s = ua;
+  if (/KAKAOTALK/i.test(s)) return "카카오톡";
+  if (/NAVER\(inapp|NAVER /i.test(s)) return "네이버 앱";
+  if (/DaumApps|Daum\//i.test(s)) return "다음 앱";
+  if (/Instagram/i.test(s)) return "인스타그램";
+  if (/FBAN|FBAV|FB_IAB/i.test(s)) return "페이스북";
+  if (/Line\//i.test(s)) return "라인";
+  if (/Whale/i.test(s)) return "웨일";
+  if (/SamsungBrowser/i.test(s)) return "삼성 인터넷";
+  if (/Edg[A-Z]?\//i.test(s)) return "Edge";
+  if (/OPR\/|Opera/i.test(s)) return "Opera";
+  if (/Firefox\/|FxiOS/i.test(s)) return "Firefox";
+  if (/CriOS\/|Chrome\//i.test(s)) return "Chrome";
+  if (/Safari\//i.test(s)) return "Safari";
+  return "기타";
+}
+
+function osOf(ua) {
+  const s = ua;
+  if (/Windows NT/i.test(s)) return "Windows";
+  if (/Android/i.test(s)) return "Android";
+  if (/iPhone|iPad|iPod/i.test(s)) return "iOS";
+  if (/Mac OS X|Macintosh/i.test(s)) return "macOS";
+  if (/CrOS/i.test(s)) return "ChromeOS";
+  if (/Linux/i.test(s)) return "Linux";
+  return "기타";
+}
+
+/**
+ * 거쳐 들어온 곳. 우리 사이트 안에서 옮겨 다닌 것은 유입으로 치지 않는다(null).
+ *
+ * "우리 사이트"를 request.url 하나로만 판단하면 안 된다. 개발 중이나 프록시 뒤에서는
+ * request.url 의 주소가 브라우저가 실제로 친 주소와 달라서, 내부 이동이 유입으로 잡힌다
+ * (실제로 개발 중에 referrer 가 localhost 로 쌓였다). 브라우저가 보낸 Host·Origin 도 같이 본다.
+ */
+function referrerHost(ref, selfHosts) {
+  const raw = String(ref || "").trim();
+  if (!raw) return null;
+  let host;
+  try {
+    host = new URL(raw).hostname.toLowerCase();
+  } catch {
+    return null;
+  }
+  host = host.replace(/^(www|m|search|mobile)\./, "");
+  if (!host || host.endsWith("julieenglish.co.kr") || host.endsWith("workers.dev")) return null;
+
+  for (const s of selfHosts || []) {
+    const self = String(s || "").toLowerCase().split(":")[0].replace(/^www\./, "");
+    if (self && self === host) return null;
+  }
+  return host.slice(0, 60);
+}
+
+/** 한국 기준 오늘 날짜와 지금 시각(0~23). */
+function kstDayHour() {
+  const kst = new Date(Date.now() + 9 * 60 * 60 * 1000);
+  return { day: kst.toISOString().slice(0, 10), hour: kst.getUTCHours() };
+}
+
+/** 한국 기준으로 n일 전 날짜 (오늘 포함 n일 구간의 첫날). */
+function kstDaysAgo(n) {
+  const kst = new Date(Date.now() + 9 * 60 * 60 * 1000 - n * 24 * 60 * 60 * 1000);
+  return kst.toISOString().slice(0, 10);
+}
+
+/* 그날치 소금은 하루 종일 같은 값이라 Worker 안에 잠깐 들고 있는다. */
+let saltCache = { day: null, salt: null };
+
+async function daySalt(env, day) {
+  if (saltCache.day === day && saltCache.salt) return saltCache.salt;
+
+  const row = await env.DB.prepare(`SELECT salt FROM visit_salts WHERE day = ?1`).bind(day).first();
+  if (row && row.salt) {
+    saltCache = { day, salt: row.salt };
+    return row.salt;
+  }
+
+  const fresh = b64(crypto.getRandomValues(new Uint8Array(24)));
+  await env.DB.prepare(
+    `INSERT INTO visit_salts (day, salt) VALUES (?1, ?2) ON CONFLICT(day) DO NOTHING`
+  )
+    .bind(day, fresh)
+    .run();
+
+  // 같은 순간에 두 사람이 들어오면 서로 다른 소금을 만들 수 있으니, 실제로 들어간 값을 다시 읽는다.
+  const saved = await env.DB.prepare(`SELECT salt FROM visit_salts WHERE day = ?1`).bind(day).first();
+  const salt = (saved && saved.salt) || fresh;
+
+  // 하루가 처음 열릴 때 오래된 것을 함께 치운다.
+  // 소금은 사흘, 방문 기록은 2년치까지만 남긴다.
+  await env.DB.prepare(`DELETE FROM visit_salts WHERE day < date(?1, '-3 day')`).bind(day).run();
+  await env.DB.prepare(`DELETE FROM visits WHERE day < date(?1, '-730 day')`).bind(day).run();
+
+  saltCache = { day, salt };
+  return salt;
+}
+
+/** 오늘 하루만 유효한 익명 구분값. 되돌려서 누구인지 알아낼 수 없다. */
+async function visitorKey(env, day, ip, ua) {
+  const salt = await daySalt(env, day);
+  const buf = await crypto.subtle.digest("SHA-256", enc.encode(`${salt}|${ip}|${ua}`));
+  return [...new Uint8Array(buf).slice(0, 8)]
+    .map((n) => n.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+/**
+ * 화면을 하나 볼 때마다 브라우저가 조용히 부르는 자리.
+ * 실패해도 방문자 화면에는 아무 영향이 없어야 하므로 어떤 경우에도 204 로 끝낸다.
+ */
+async function trackVisit(request, env) {
+  const quiet = () => new Response(null, { status: 204, headers: { "cache-control": "no-store" } });
+
+  try {
+    const ua = (request.headers.get("user-agent") || "").slice(0, 400);
+    if (!ua || BOT_RE.test(ua)) return quiet();
+    // 브라우저가 "추적을 원하지 않는다"고 알려 오면 그 뜻을 따른다.
+    if (request.headers.get("dnt") === "1" || request.headers.get("sec-gpc") === "1") return quiet();
+
+    const b = await request.json().catch(() => ({}));
+    const path = normalizeTrackPath(b && b.path);
+    const url = new URL(request.url);
+    const origin = request.headers.get("origin") || "";
+    const referrer = referrerHost(b && b.ref, [
+      url.hostname,
+      request.headers.get("host"),
+      origin && origin.includes("//") ? origin.split("//")[1] : origin,
+    ]);
+
+    const { day, hour } = kstDayHour();
+    const ip = request.headers.get("cf-connecting-ip") || "";
+    const visitor = await visitorKey(env, day, ip, ua);
+
+    // 같은 사람이 같은 화면을 30초 안에 다시 열면(새로고침·뒤로가기) 한 번으로 본다.
+    const dup = await env.DB.prepare(
+      `SELECT id FROM visits
+        WHERE day = ?1 AND visitor = ?2 AND path = ?3
+          AND created_at > datetime('now', '-30 seconds') LIMIT 1`
+    )
+      .bind(day, visitor, path)
+      .first();
+    if (dup) return quiet();
+
+    const me = await currentUser(request, env);
+    const cf = request.cf || {};
+
+    await env.DB.prepare(
+      `INSERT INTO visits
+         (day, hour, path, visitor, is_admin, is_member, device, browser, os, referrer, country, city)
+       VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)`
+    )
+      .bind(
+        day,
+        hour,
+        path,
+        visitor,
+        me && me.role === "admin" ? 1 : 0,
+        me ? 1 : 0,
+        deviceOf(ua),
+        browserOf(ua),
+        osOf(ua),
+        referrer,
+        (cf.country || "").slice(0, 4) || null,
+        (cf.city || "").slice(0, 60) || null
+      )
+      .run();
+
+    return quiet();
+  } catch (e) {
+    // 통계 때문에 방문자 화면이 흔들리면 안 된다. 원인만 남기고 넘어간다.
+    console.error("방문 기록 실패", e);
+    return quiet();
+  }
+}
+
+/* ------------------------------------------------------------
+   관리자 화면에 넘겨주는 집계
+   ------------------------------------------------------------ */
+
+// 0 은 "전체 기간"
+const STATS_RANGES = new Set([7, 30, 90, 365, 0]);
+
+async function adminStats(env, url) {
+  const asked = parseInt(url.searchParams.get("days") || "30", 10);
+  const days = STATS_RANGES.has(asked) ? asked : 30;
+
+  const today = kstDayHour().day;
+  // 전체 기간이면 아무 날짜보다 앞선 값을 넣어 조건을 사실상 없앤다.
+  const from = days ? kstDaysAgo(days - 1) : "0000-00-00";
+
+  // 원장님 본인 접속(is_admin)은 빼고 센다. 매일 관리자 화면을 여는 것까지
+  // 방문으로 잡히면 실제 학부모 방문보다 숫자가 부풀려진다.
+  const where = `is_admin = 0 AND day >= ?1`;
+
+  const one = (sql) => env.DB.prepare(sql).bind(from).first();
+  const many = async (sql) => {
+    const { results } = await env.DB.prepare(sql).bind(from).all();
+    return results || [];
+  };
+
+  const summary = await one(
+    `SELECT COUNT(*) AS views,
+            COUNT(DISTINCT visitor) AS visitors,
+            COUNT(DISTINCT day) AS active_days,
+            SUM(is_member) AS member_views
+       FROM visits WHERE ${where}`
+  );
+
+  const first = await env.DB.prepare(`SELECT MIN(day) AS d FROM visits WHERE is_admin = 0`).first();
+
+  const todayRow = await env.DB.prepare(
+    `SELECT COUNT(*) AS views, COUNT(DISTINCT visitor) AS visitors
+       FROM visits WHERE is_admin = 0 AND day = ?1`
+  )
+    .bind(today)
+    .first();
+
+  const daily = await many(
+    `SELECT day, COUNT(*) AS views, COUNT(DISTINCT visitor) AS visitors
+       FROM visits WHERE ${where} GROUP BY day ORDER BY day`
+  );
+
+  const pages = await many(
+    `SELECT path AS key, COUNT(*) AS views, COUNT(DISTINCT visitor) AS visitors
+       FROM visits WHERE ${where} GROUP BY path ORDER BY views DESC`
+  );
+
+  const group = (col) =>
+    many(
+      `SELECT COALESCE(NULLIF(${col}, ''), '(모름)') AS key,
+              COUNT(*) AS views, COUNT(DISTINCT visitor) AS visitors
+         FROM visits WHERE ${where} GROUP BY key ORDER BY views DESC LIMIT 12`
+    );
+
+  const [devices, browsers, oses, cities] = await Promise.all([
+    group("device"),
+    group("browser"),
+    group("os"),
+    group("city"),
+  ]);
+
+  const referrers = await many(
+    `SELECT COALESCE(referrer, '(직접 방문)') AS key,
+            COUNT(*) AS views, COUNT(DISTINCT visitor) AS visitors
+       FROM visits WHERE ${where} GROUP BY key ORDER BY views DESC LIMIT 12`
+  );
+
+  const hours = await many(
+    `SELECT hour AS key, COUNT(*) AS views FROM visits WHERE ${where} GROUP BY hour ORDER BY hour`
+  );
+
+  const weekdays = await many(
+    `SELECT CAST(strftime('%w', day) AS INTEGER) AS key, COUNT(*) AS views
+       FROM visits WHERE ${where} GROUP BY key ORDER BY key`
+  );
+
+  return json({
+    days,
+    from: days ? from : (first && first.d) || today,
+    to: today,
+    first_day: (first && first.d) || null,
+    summary: {
+      views: (summary && summary.views) || 0,
+      visitors: (summary && summary.visitors) || 0,
+      active_days: (summary && summary.active_days) || 0,
+      member_views: (summary && summary.member_views) || 0,
+      today_views: (todayRow && todayRow.views) || 0,
+      today_visitors: (todayRow && todayRow.visitors) || 0,
+    },
+    daily,
+    pages,
+    devices,
+    browsers,
+    oses,
+    cities,
+    referrers,
+    hours,
+    weekdays,
+  });
 }

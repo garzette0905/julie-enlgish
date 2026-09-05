@@ -6,7 +6,7 @@
  * 화면을 옮길 때는 history.pushState 로 주소만 바꾸고, 서버에는 다시 묻지 않는다.
  * 주소창에 /reviews 를 직접 쳐서 들어와도 Worker 가 같은 index.html 을 돌려준다.
  */
-import { $, $$, esc, refreshSession, onSessionChange, session } from "./js/core.js";
+import { $, $$, esc, refreshSession, onSessionChange, session, trackVisit } from "./js/core.js";
 import { renderHome, renderAbout, fillFooter } from "./js/public-pages.js";
 import { renderLogin, renderMy, renderMe } from "./js/account.js";
 import { renderContact } from "./js/contact.js";
@@ -129,6 +129,8 @@ async function render() {
   const path = location.pathname.replace(/\/+$/, "") || "/";
   syncMenu(path);
   syncTitle(path);
+  // 어느 메뉴를 얼마나 보는지 센다 (관리자 화면 → 방문 통계).
+  trackVisit(path);
   window.scrollTo({ top: 0, behavior: "instant" in window ? "instant" : "auto" });
 
   try {

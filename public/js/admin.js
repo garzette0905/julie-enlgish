@@ -21,6 +21,7 @@ const TABS = [
   { key: "media", label: "학원 소식·사진" },
   { key: "reviews", label: "후기 순서" },
   { key: "alumni", label: "졸업생 관리" },
+  { key: "stats", label: "방문 통계" },
   { key: "settings", label: "사이트 설정" },
 ];
 
@@ -62,6 +63,7 @@ export async function renderAdmin(view, tab = "inquiries") {
     media: adminMedia,
     reviews: adminReviewOrder,
     alumni: adminAlumni,
+    stats: adminStatsScreen,
     settings: adminSettings,
   };
   await renderers[tab](body);
@@ -1632,4 +1634,266 @@ function bannerNewNote(sqlDateTime) {
   if (until < Date.now()) return "";
   const d = new Date(until);
   return `<br>지금 배너는 <b>${d.getFullYear()}년 ${d.getMonth() + 1}월 ${d.getDate()}일</b>까지 NEW 로 표시됩니다.`;
+}
+
+/* ============================================================
+   방문 통계 — 누가 얼마나 들어오고, 어느 메뉴를 보는가
+
+   서버(src/index.js)가 화면 열람 한 건마다 남겨 둔 기록을 모아서 보여 준다.
+   방문자 개인을 알아낼 수 있는 값(이름·연락처·IP)은 애초에 저장하지 않으므로,
+   여기서도 "몇 명이 · 무엇으로 · 어디를 거쳐 · 어느 화면을" 만 나온다.
+   ============================================================ */
+
+const STAT_RANGES = [
+  [7, "최근 7일"],
+  [30, "최근 30일"],
+  [90, "최근 90일"],
+  [365, "최근 1년"],
+  [0, "전체 기간"],
+];
+
+const STAT_PAGE_KR = {
+  "/": "학원소개 (홈)",
+  "/about": "학원 소식·사진",
+  "/reviews": "재원생 · 졸업생 · 학부모 후기",
+  "/contact": "상담신청 · 문의",
+  "/contact/question": "문의하기",
+  "/login": "로그인",
+  "/signup": "회원가입",
+  "/my": "나의 수업",
+  "/me": "내 정보",
+  "/admin": "관리자 화면",
+  "(기타)": "그 밖의 주소",
+};
+
+const STAT_DEVICE_KR = { mobile: "휴대폰", tablet: "태블릿", desktop: "PC" };
+
+/** 네이버·구글처럼 자주 나오는 곳은 한글 이름으로 바꿔 준다. */
+function referrerKr(host) {
+  const h = String(host || "");
+  if (h === "(직접 방문)") return "직접 방문 (주소 입력 · 즐겨찾기 · 카톡 링크)";
+  if (/naver\.com$/.test(h)) return `네이버 (${h})`;
+  if (/google\./.test(h)) return `구글 (${h})`;
+  if (/daum\.net$|kakao\.com$/.test(h)) return `다음·카카오 (${h})`;
+  if (/bing\.com$/.test(h)) return `빙 (${h})`;
+  if (/instagram\.com$/.test(h)) return `인스타그램 (${h})`;
+  if (/youtube\.com$|youtu\.be$/.test(h)) return `유튜브 (${h})`;
+  return h;
+}
+
+const pct = (n, total) => (total > 0 ? Math.round((n / total) * 1000) / 10 : 0);
+
+/** 값이 큰 순서로 늘어놓은 가로 막대 목록. */
+function barList(rows, { label = (k) => k, empty = "아직 기록이 없습니다." } = {}) {
+  const total = rows.reduce((s, r) => s + (r.views || 0), 0);
+  if (!rows.length || !total) return `<div class="stat-empty">${esc(empty)}</div>`;
+  const max = Math.max(...rows.map((r) => r.views || 0));
+
+  return rows
+    .map((r) => {
+      const share = pct(r.views, total);
+      return `<div class="bar-row">
+        <div class="bar-name" title="${esc(label(r.key))}">${esc(label(r.key))}</div>
+        <div class="bar-track"><div class="bar-fill" style="width:${Math.max(2, (r.views / max) * 100)}%"></div></div>
+        <div class="bar-num"><b>${r.views.toLocaleString()}</b><span>${share}%</span></div>
+      </div>`;
+    })
+    .join("");
+}
+
+async function adminStatsScreen(body) {
+  body.innerHTML = `
+    <div class="admin-toolbar">
+      <div class="grow" style="font-size:14px;color:var(--text-muted)">
+        홈페이지에 누가 얼마나 들어오는지, 어느 메뉴를 주로 보는지 보여 줍니다.
+      </div>
+      <select id="st-days" style="max-width:150px">
+        ${STAT_RANGES.map(([v, t]) => `<option value="${v}"${v === 30 ? " selected" : ""}>${t}</option>`).join("")}
+      </select>
+    </div>
+    <div id="st-body"><div class="loading">불러오는 중…</div></div>`;
+
+  const out = $("#st-body", body);
+  const daysEl = $("#st-days", body);
+
+  const load = async () => {
+    out.innerHTML = `<div class="loading">불러오는 중…</div>`;
+    try {
+      const d = await apiGet(`admin/stats?days=${daysEl.value}`);
+      out.innerHTML = statsHtml(d);
+    } catch (e) {
+      out.innerHTML = `<div class="empty">${esc(e.message)}</div>`;
+    }
+  };
+
+  daysEl.addEventListener("change", load);
+  await load();
+}
+
+function statsHtml(d) {
+  const s = d.summary;
+  const perVisitor = s.visitors > 0 ? Math.round((s.views / s.visitors) * 10) / 10 : 0;
+  const perDay = s.active_days > 0 ? Math.round(s.views / s.active_days) : 0;
+
+  return `
+    ${statCards(d, s, perVisitor, perDay)}
+
+    <div class="card pad stat-section">
+      <h3 class="stat-h">날짜별 방문</h3>
+      <p class="stat-sub">막대 위에 마우스를 올리면 그날 숫자가 보입니다. 진한 칸이 방문자 수입니다.</p>
+      ${dailyChart(d.daily)}
+    </div>
+
+    <div class="card pad stat-section">
+      <h3 class="stat-h">어느 메뉴를 보는가</h3>
+      <p class="stat-sub">화면을 연 횟수 기준입니다. 같은 사람이 여러 번 열면 그만큼 셉니다.</p>
+      <div class="table-scroll"><table class="data stat-table">
+        <thead><tr><th>메뉴</th><th>본 횟수</th><th>본 사람</th><th style="width:34%">비중</th></tr></thead>
+        <tbody>${pageRows(d.pages)}</tbody>
+      </table></div>
+    </div>
+
+    <div class="card pad stat-section">
+      <h3 class="stat-h">어떤 사람들이 들어오는가</h3>
+      <p class="stat-sub">브라우저가 스스로 알려 주는 값과 접속 지역만 모읍니다. 이름·연락처는 남기지 않습니다.</p>
+      <div class="stat-grid">
+        <div class="stat-block">
+          <h4>기기</h4>
+          ${barList(d.devices, { label: (k) => STAT_DEVICE_KR[k] || k })}
+        </div>
+        <div class="stat-block">
+          <h4>브라우저 · 앱</h4>
+          ${barList(d.browsers)}
+        </div>
+        <div class="stat-block">
+          <h4>운영체제</h4>
+          ${barList(d.oses)}
+        </div>
+        <div class="stat-block">
+          <h4>접속 지역 (도시)</h4>
+          ${barList(d.cities, { empty: "지역 정보가 아직 없습니다." })}
+        </div>
+      </div>
+    </div>
+
+    <div class="card pad stat-section">
+      <h3 class="stat-h">어디를 거쳐 들어오는가</h3>
+      <p class="stat-sub">직전에 머물던 곳입니다. 주소를 직접 치거나 카톡·문자 링크로 들어오면 "직접 방문"으로 잡힙니다.</p>
+      ${barList(d.referrers, { label: referrerKr })}
+    </div>
+
+    <div class="card pad stat-section">
+      <h3 class="stat-h">언제 들어오는가</h3>
+      <div class="stat-grid">
+        <div class="stat-block">
+          <h4>시간대 (한국시간)</h4>
+          ${hourChart(d.hours)}
+        </div>
+        <div class="stat-block">
+          <h4>요일</h4>
+          ${barList(fillWeekdays(d.weekdays), { label: (k) => ["일", "월", "화", "수", "목", "금", "토"][k] + "요일" })}
+        </div>
+      </div>
+    </div>
+
+    <div class="hint stat-note">
+      · 원장님(관리자)으로 로그인한 채 돌아다닌 것은 <b>세지 않습니다</b>.<br>
+      · 검색로봇(네이버 Yeti · 구글봇 등)도 빼고 셉니다.<br>
+      · 같은 사람이 같은 화면을 30초 안에 다시 열면 한 번으로 봅니다.<br>
+      · <b>방문자 수</b>는 하루 기준입니다. 같은 분이 이틀에 걸쳐 오면 2명으로 셉니다 —
+        사람을 날짜 너머로 따라다니지 않기 때문입니다(그래야 동의를 받지 않아도 됩니다).<br>
+      · 기록은 2년치까지만 남기고 오래된 것은 자동으로 지웁니다.
+    </div>`;
+}
+
+function statCards(d, s, perVisitor, perDay) {
+  // 카드 한 줄에 들어가야 해서 "8/7 ~ 9/5" 처럼 짧게 적는다. 해가 넘어가면 연도를 붙인다.
+  const short = (iso) => {
+    const [y, m, dd] = String(iso || "").split("-");
+    if (!dd) return "";
+    return y === d.to.slice(0, 4) ? `${Number(m)}/${Number(dd)}` : `${y.slice(2)}.${Number(m)}/${Number(dd)}`;
+  };
+  const start = d.days ? d.from : d.first_day;
+  const period = start ? `${short(start)} ~ ${short(d.to)}` : "기록 없음";
+  const memberShare = pct(s.member_views, s.views);
+
+  const card = (label, value, sub) => `<div class="stat-card">
+      <span class="stat-label">${esc(label)}</span>
+      <b class="stat-value">${esc(value)}</b>
+      <span class="stat-sub2">${sub}</span>
+    </div>`;
+
+  return `<div class="stat-cards">
+    ${card("오늘", `${s.today_visitors.toLocaleString()}명`, `${s.today_views.toLocaleString()}회 열람`)}
+    ${card("기간 방문자", `${s.visitors.toLocaleString()}명`, esc(period))}
+    ${card("기간 열람", `${s.views.toLocaleString()}회`, `하루 평균 ${perDay.toLocaleString()}회`)}
+    ${card("한 사람이 보는 화면", `${perVisitor}개`, "여러 곳을 둘러본 정도")}
+    ${card("로그인 회원 열람", `${memberShare}%`, "나머지는 비회원 방문")}
+  </div>`;
+}
+
+function pageRows(pages) {
+  if (!pages.length) return `<tr><td colspan="4" class="empty">아직 기록이 없습니다.</td></tr>`;
+  const total = pages.reduce((s, p) => s + p.views, 0);
+  const max = Math.max(...pages.map((p) => p.views));
+
+  return pages
+    .map(
+      (p) => `<tr>
+        <td><b>${esc(STAT_PAGE_KR[p.key] || p.key)}</b>
+            <span style="color:var(--text-faint);font-size:12.5px"> ${esc(p.key)}</span></td>
+        <td class="nowrap">${p.views.toLocaleString()}회</td>
+        <td class="nowrap">${p.visitors.toLocaleString()}명</td>
+        <td><div class="bar-cell">
+          <div class="bar-track" style="flex:1"><div class="bar-fill" style="width:${Math.max(2, (p.views / max) * 100)}%"></div></div>
+          <span class="bar-inline">${pct(p.views, total)}%</span>
+        </div></td>
+      </tr>`
+    )
+    .join("");
+}
+
+function dailyChart(daily) {
+  if (!daily.length) return `<div class="stat-empty">아직 기록이 없습니다.</div>`;
+  const max = Math.max(...daily.map((r) => r.views));
+  // 날짜를 전부 적으면 글씨가 서로 겹쳐 아무것도 못 읽는다. 열 개 남짓만 적는다.
+  const step = Math.max(1, Math.ceil(daily.length / 10));
+
+  return `<div class="chart-days">${daily
+    .map((r, i) => {
+      const h = Math.max(3, (r.views / max) * 100);
+      const inner = r.views > 0 ? (r.visitors / r.views) * 100 : 0;
+      const label = i % step === 0 || i === daily.length - 1 ? r.day.slice(5).replace("-", "/") : "";
+      return `<div class="chart-col" title="${esc(r.day)} — ${r.views}회 열람 · 방문자 ${r.visitors}명">
+        <div class="chart-slot">
+          <div class="chart-bar" style="height:${h}%"><div class="chart-bar-in" style="height:${inner}%"></div></div>
+        </div>
+        <span class="chart-x">${esc(label)}</span>
+      </div>`;
+    })
+    .join("")}</div>`;
+}
+
+function hourChart(hours) {
+  if (!hours.length) return `<div class="stat-empty">아직 기록이 없습니다.</div>`;
+  const byHour = new Array(24).fill(0);
+  for (const r of hours) byHour[r.key] = r.views;
+  const max = Math.max(1, ...byHour);
+
+  return `<div class="chart-hours">${byHour
+    .map(
+      (n, h) => `<div class="chart-col" title="${h}시 ~ ${h}시 59분 — ${n}회">
+        <div class="chart-slot">
+          <div class="chart-bar solid" style="height:${Math.max(3, (n / max) * 100)}%"></div>
+        </div>
+        <span class="chart-x">${h % 3 === 0 ? h : ""}</span>
+      </div>`
+    )
+    .join("")}</div>`;
+}
+
+/** 기록이 없는 요일도 0 으로 채워서 일곱 줄이 항상 나오게 한다. */
+function fillWeekdays(rows) {
+  const by = new Map(rows.map((r) => [r.key, r.views]));
+  return [0, 1, 2, 3, 4, 5, 6].map((k) => ({ key: k, views: by.get(k) || 0 }));
 }

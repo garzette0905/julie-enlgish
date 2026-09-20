@@ -457,8 +457,33 @@ table.data .badge { white-space: nowrap; }
   background: var(--bg-tint); color: var(--navy); font-weight: 800; font-size: 14px;
   margin-bottom: 13px;
 }
-.feature h3 { font-size: 17px; color: var(--navy); margin-bottom: 7px; }
-.feature p { margin: 0; font-size: 14.5px; color: var(--text-muted); }
+.feature h3 { font-size: 17px; color: var(--navy); margin-bottom: 7px; word-break: keep-all; }
+.feature p { margin: 0; font-size: 14.5px; color: var(--text-muted); word-break: keep-all; }
+
+/* 초등 전문 카드 — 같은 줄에 서되 한눈에 구분되도록 빨간 계열로 둔다. */
+.feature.elem { position: relative; border-color: #f3ccd1; background: linear-gradient(180deg, #fff7f8, #fff 58%); }
+.feature.elem .num { background: #fdeaec; color: var(--red); }
+.feature.elem h3 { padding-right: 58px; }
+.feature.elem .tag {
+  position: absolute; top: 15px; right: 14px;
+  padding: 3px 9px; border-radius: 999px;
+  background: var(--red); color: #fff;
+  font-size: 11px; font-weight: 700; letter-spacing: 0.01em;
+}
+
+/* 섹션 제목 옆에 붙는 "더 보기" 버튼 (초등 영어가 중요한 이유 팝업) */
+.head-more {
+  display: inline-block; vertical-align: middle; margin-left: 10px;
+  padding: 6px 13px; border: 1px solid #f0c2c6; border-radius: 999px;
+  background: #fff; color: var(--red);
+  font-family: var(--font); font-size: 13px; font-weight: 700; line-height: 1.2;
+  letter-spacing: -0.01em; cursor: pointer; white-space: nowrap;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+.head-more:hover { background: var(--red); border-color: var(--red); color: #fff; }
+@media (max-width: 520px) {
+  .head-more { display: block; margin: 12px 0 0; }
+}
 
 /* 두 칼럼 정보 (수업 / 선생님) */
 .info-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
@@ -1071,6 +1096,81 @@ table.data .tu-paid, table.data .tu-pick { width: auto; margin: 0; }
   .modal { border-radius: var(--radius); }
   .modal-body { padding: 18px; }
   .modal-head, .modal-foot { padding: 14px 18px; }
+}
+
+/* 초등 영어의 중요성 팝업 — 글이 길어서 읽기 편하게 단락을 띄워 둔다. */
+.elem-pop { font-size: 15px; line-height: 1.78; color: var(--text); }
+.elem-pop > p { margin: 0 0 14px; color: var(--text-muted); }
+.elem-pop b { color: var(--navy); font-weight: 700; }
+
+.ep-lead {
+  font-size: clamp(19px, 2.6vw, 23px); font-weight: 800; line-height: 1.45;
+  color: var(--navy) !important; letter-spacing: -0.02em; margin-bottom: 10px !important;
+}
+.ep-sub { margin-bottom: 20px !important; }
+
+.ep-flow {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 7px;
+  padding: 14px; border-radius: var(--radius-sm); background: var(--bg-tint);
+}
+.ep-flow span {
+  display: inline-flex; align-items: center;
+  font-size: 14px; font-weight: 700; color: var(--navy);
+}
+.ep-flow span + span::before {
+  content: "→"; margin-right: 7px; color: var(--navy-soft); font-weight: 600;
+}
+.ep-note { margin: 9px 0 22px !important; font-size: 13.5px; color: var(--text-faint) !important; }
+
+.ep-grid {
+  display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;
+  margin-bottom: 26px;
+}
+.ep-card {
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  padding: 13px 14px; background: #fff;
+}
+.ep-card b { display: block; font-size: 14px; color: var(--navy); margin-bottom: 3px; letter-spacing: -0.01em; }
+.ep-card p { margin: 0; font-size: 13.5px; line-height: 1.6; color: var(--text-muted); }
+
+.ep-h {
+  margin: 0 0 8px; font-size: 16.5px; color: var(--navy); letter-spacing: -0.02em;
+  padding-left: 12px; border-left: 3px solid var(--red); line-height: 1.4;
+}
+.elem-pop .ep-h + p { margin-bottom: 22px; }
+
+.ep-highlight {
+  display: flex; gap: 12px; align-items: flex-start;
+  border: 1px solid #f3ccd1; background: #fff7f8;
+  border-radius: var(--radius-sm); padding: 14px 16px; margin-bottom: 16px;
+}
+.ep-tag {
+  flex: none; padding: 3px 10px; border-radius: 999px;
+  background: var(--red); color: #fff; font-size: 12px; font-weight: 700; margin-top: 3px;
+}
+.ep-highlight p { margin: 0; font-size: 14.5px; line-height: 1.7; color: var(--text); }
+
+.ep-quote {
+  border-radius: var(--radius); padding: 20px 22px; margin-bottom: 26px;
+  background: linear-gradient(140deg, var(--navy), #1a4bc4);
+  color: #fff; font-size: 15.5px; font-weight: 600; line-height: 1.7;
+}
+.ep-quote b { color: #fff; font-weight: 800; }
+.ep-quote span {
+  display: block; margin-top: 8px;
+  font-size: 13.5px; font-weight: 400; line-height: 1.7;
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.ep-closing {
+  margin: 0 !important; padding-top: 14px; border-top: 1px dashed var(--border);
+  font-size: 16px; font-weight: 700; color: var(--navy) !important; letter-spacing: -0.02em;
+}
+
+@media (max-width: 520px) {
+  .elem-pop { font-size: 14.5px; }
+  .ep-grid { grid-template-columns: 1fr; }
+  .ep-quote { padding: 17px 18px; font-size: 15px; }
 }
 
 /* 체크박스 목록 (클래스 연결) */

@@ -107,27 +107,49 @@ export async function renderHome(view) {
       <div class="wrap">
         <div class="section-head">
           <span class="eyebrow">Why Julie&rsquo;s</span>
-          <h2>2007년부터 시작된 동백의 영어 전문가</h2>
-          <p>2007년부터 동백에서 이어온 지도 경험, 그리고 분당 정자동 영어유치원·어학원 티칭 경력.</p>
+          <h2>2007년부터 시작된 동백의 영어 전문가<button type="button" class="head-more" id="why-elementary">초등 영어가 중요한 이유 &rarr;</button></h2>
+          <p>2007년부터 동백에서 이어온 지도 경험, 그리고 분당 정자동 영어유치원·어학원 티칭 경력.<br>
+            파닉스부터 Listening &middot; Speaking &middot; Reading &middot; Writing 까지, 초등 영어를 전문으로 가르칩니다.</p>
         </div>
         <div class="feature-grid">
-          <div class="feature">
+          <div class="feature elem">
+            <span class="tag">초등 전문</span>
             <span class="num">01</span>
+            <h3>4대 영역 전문 교재</h3>
+            <p>Listening &middot; Speaking &middot; Reading &middot; Writing 을 영역별 전문 교재로 나눠 배웁니다.
+              문제만 많이 푸는 영어가 아니라, 듣고 &rarr; 이해하고 &rarr; 말하고 &rarr; 읽고 &rarr; 쓰는 영어로 이어집니다.</p>
+          </div>
+          <div class="feature elem">
+            <span class="tag">초등 전문</span>
+            <span class="num">02</span>
+            <h3>스토리텔링 &middot; 토픽 스피킹</h3>
+            <p>토픽별 Speaking &amp; Listening 수업과 Storytelling 활동으로 배운 영어를 직접 말합니다.
+              3년차가 되면 초등 6학년 수준 독해 지문의 내용을 자기 말로 설명합니다.</p>
+          </div>
+          <div class="feature elem">
+            <span class="tag">초등 전문</span>
+            <span class="num">03</span>
+            <h3>중 &middot; 고등까지 가는 초등 6년</h3>
+            <p>초등에서 차곡차곡 쌓은 듣기 실력은 중학생이 되어도 고등 수준 듣기 문제를 풀어낼 만큼 이어집니다.
+              초1 파닉스부터 6년을 함께한 학생이 동탄국제고에 진학한 사례도 있습니다.</p>
+          </div>
+          <div class="feature">
+            <span class="num">04</span>
             <h3>재미있는 파닉스</h3>
             <p>소리부터 차근차근. 읽기의 성취감도 느끼고, 재미있는 수업방식으로 진행됩니다</p>
           </div>
           <div class="feature">
-            <span class="num">02</span>
+            <span class="num">05</span>
             <h3>초·중·고 내신 선행</h3>
             <p>학교 진도를 앞서가는 선행과 시험 기간 집중 내신 대비를 함께 합니다.</p>
           </div>
           <div class="feature">
-            <span class="num">03</span>
+            <span class="num">06</span>
             <h3>English 수업</h3>
             <p>수업 시간에 영어와 병행해서 수업을 진행합니다. 영어 말하는 감각을 유지합니다.</p>
           </div>
           <div class="feature">
-            <span class="num">04</span>
+            <span class="num">07</span>
             <h3>주 5일 과제</h3>
             <p>수업이 없는 날에도 과제로 이어집니다. 매일 매일의 공부가 영어 실력이 됩니다</p>
           </div>
@@ -246,6 +268,87 @@ export async function renderHome(view) {
       target.scrollIntoView({ behavior: "smooth", block: "start" });
     });
   }
+
+  // "영어 전문가" 제목 옆 버튼 — 초등 영어를 왜 이렇게 가르치는지 팝업으로 풀어 준다.
+  const whyBtn = $("#why-elementary", view);
+  if (whyBtn) whyBtn.addEventListener("click", openElementaryPopup);
+}
+
+/* ------------------------------------------------------------
+   초등 영어의 중요성 팝업
+   홈 "영어 전문가" 제목 옆 버튼에서 연다.
+   ------------------------------------------------------------ */
+function openElementaryPopup() {
+  openModal({
+    wide: true,
+    title: "초등 영어의 시작이 중요한 이유",
+    body: html(`
+      <div class="elem-pop">
+        <p class="ep-lead">초등 영어, 제대로 배운 6년이 실력을 만듭니다.</p>
+        <p class="ep-sub">
+          쥴리 잉글리쉬는 초등 영어 교육을 전문으로 합니다. 파닉스부터 시작해
+          Listening &middot; Speaking &middot; Reading &middot; Writing, 언어의 4가지 영역을
+          각각 전문 교재로 체계적으로 학습합니다.
+        </p>
+
+        <div class="ep-flow">
+          <span>듣고</span><span>이해하고</span><span>말하고</span><span>읽고</span><span>쓰고</span>
+        </div>
+        <p class="ep-note">단순히 문제를 많이 푸는 영어가 아니라, 다섯 단계가 자연스럽게 이어지도록 가르칩니다.</p>
+
+        <div class="ep-grid">
+          <div class="ep-card">
+            <b>Listening</b>
+            <p>토픽별 듣기 수업으로 소리를 통째로 익힙니다.</p>
+          </div>
+          <div class="ep-card">
+            <b>Speaking</b>
+            <p>Topic Speaking &middot; Storytelling 으로 직접 말합니다.</p>
+          </div>
+          <div class="ep-card">
+            <b>Reading</b>
+            <p>수준별 독해 교재로 글의 흐름을 읽어냅니다.</p>
+          </div>
+          <div class="ep-card">
+            <b>Writing</b>
+            <p>읽고 이해한 내용을 초등부터 문장으로 씁니다.</p>
+          </div>
+        </div>
+
+        <h4 class="ep-h">듣기만 잘하는 영어가 아닙니다</h4>
+        <p>
+          토픽별 Speaking &amp; Listening 수업과 다양한 Storytelling 활동을 통해 배운 영어를
+          직접 듣고, 이해하고, 말하는 힘을 키웁니다. 초등에서 차곡차곡 쌓은 듣기 실력은
+          중학교에 진학한 후에도 이어져, <b>고등학교 수준의 영어 듣기 문제까지 안정적으로
+          이해할 수 있는 기반</b>이 됩니다.
+        </p>
+
+        <h4 class="ep-h">읽은 내용을 자기 언어로 표현하는 영어</h4>
+        <p>
+          Storytelling 과 Speaking 활동을 통해 독해 교재의 내용을 단순히 해석하는 데 그치지 않고,
+          자신의 말로 설명하고 표현하는 연습을 합니다. Writing 역시 초등 단계부터 꾸준히 훈련하여
+          읽고 이해한 내용을 문장으로 표현하는 힘을 키웁니다.
+        </p>
+
+        <div class="ep-highlight">
+          <span class="ep-tag">3년차</span>
+          <p>쥴리 잉글리쉬에서 3년을 공부하면, <b>초등 6학년 수준 독해 교재의 내용을 자기 말로 설명</b>할 수 있습니다.</p>
+        </div>
+
+        <div class="ep-quote">
+          초등 1학년 파닉스부터 6년간 꾸준히 공부한 학생이 <b>동탄국제고</b>에 진학했습니다.
+          <span>6년의 초등 영어가 말하고 &middot; 읽고 &middot; 쓰고 &middot; 이해하는 진짜 영어 실력으로 이어진 결과입니다.</span>
+        </div>
+
+        <h4 class="ep-h">초등 시기의 기본기가 중 &middot; 고등 영어를 결정합니다</h4>
+        <p>
+          쥴리 잉글리쉬는 초등부터 다르게 가르칩니다. 파닉스부터 시작해 4대 영역을 균형 있게 성장시키고,
+          스토리텔링과 말하기 &middot; 쓰기까지 연결합니다.
+        </p>
+        <p class="ep-closing">영어를 &lsquo;공부하는 아이&rsquo;에서 영어로 &lsquo;표현할 수 있는 아이&rsquo;로.</p>
+      </div>
+    `),
+  });
 }
 
 /* 졸업생 카드 — 홈 Result 섹션에서 쓴다. */

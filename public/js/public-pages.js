@@ -105,6 +105,13 @@ export async function renderHome(view) {
   view.append(html(`
     <section class="section">
       <div class="wrap">
+        <!-- 소개 영상 (TV 광고 1분 30초). 56MB 라 정적 파일 한도(25MB)를 넘어서
+             R2 에 올려 두고 /api/media/file/ 로 흘려보낸다. #t=0.1 은 첫 장면을 미리 보여 주려고. -->
+        <h2 class="intro-video-title">소개 동영상</h2>
+        <div class="intro-video">
+          <video src="/api/media/file/site/intro-tv-90s.mp4#t=0.1" controls playsinline preload="metadata"
+                 aria-label="쥴리 잉글리쉬 소개 영상"></video>
+        </div>
         <div class="section-head">
           <span class="eyebrow">Why Julie&rsquo;s</span>
           <h2>2007년부터 시작된 동백의 영어 전문가<button type="button" class="head-more" id="why-elementary">초등 영어가 중요한 이유 &rarr;</button></h2>

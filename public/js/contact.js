@@ -2,7 +2,7 @@
  * 상담신청 · 문의 화면
  *
  * 두 가지를 한 화면에서 받는다.
- *   상담신청 — 학생이름 / 학교 / 학년 / 영어 학습 수준 / 부모님 연락처 / 기타 의견
+ *   상담신청 — 학생이름 / 학교 / 학년 / 영어 학습 수준 / 부모님 연락처 / 추가 문의사항
  *   문의     — 학생이름 / 학생 연락처 / 부모님 연락처 / 문의 내용
  * 둘 다 학생 이름과 부모님 연락처는 반드시 받는다.
  *
@@ -11,6 +11,7 @@
 import { $, $$, html, esc, apiPost, toast, readForm } from "./core.js";
 
 const ENGLISH_LEVELS = ["없음", "1~2년", "3~4년", "5년 이상"];
+const REFERRAL_SOURCES = ["네이버·구글 등 검색", "지인 추천", "근처를 지나가다 알게 됨", "블로그·SNS", "지역 커뮤니티·맘카페", "기타"];
 
 export function renderContact(view, { kind = "consult" } = {}) {
   view.innerHTML = "";
@@ -79,7 +80,20 @@ function drawConsult(root) {
     </div>
 
     <div class="field">
-      <label for="c-msg">기타 의견</label>
+      <label for="c-referral">Julie English를 어떻게 알게 되셨나요? (선택)</label>
+      <select id="c-referral" name="referral_source">
+        <option value="">선택해 주세요</option>
+        ${REFERRAL_SOURCES.map((s) => `<option value="${esc(s)}">${esc(s)}</option>`).join("")}
+      </select>
+    </div>
+
+    <div class="field" id="c-referral-other" hidden>
+      <label for="c-referral-detail">기타 경로 (선택)</label>
+      <input id="c-referral-detail" name="referral_detail" type="text" maxlength="200" placeholder="어떻게 알게 되셨는지 적어 주세요." disabled>
+    </div>
+
+    <div class="field">
+      <label for="c-msg">추가 문의사항</label>
       <textarea id="c-msg" name="message" placeholder="상담 가능한 시간대, 궁금한 점 등을 편하게 적어 주세요."></textarea>
     </div>
 
@@ -87,6 +101,13 @@ function drawConsult(root) {
   </form>`);
 
   root.append(form);
+  $("#c-referral", form).addEventListener("change", (e) => {
+    const isOther = e.target.value === "기타";
+    $("#c-referral-other", form).hidden = !isOther;
+    const detail = $("#c-referral-detail", form);
+    detail.disabled = !isOther;
+    if (!isOther) detail.value = "";
+  });
   bindSubmit(form, root, "consult");
 }
 

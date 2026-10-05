@@ -134,6 +134,8 @@ function inquiryCard(q) {
     ["학년", q.grade],
     ["영어 학습 수준", q.english_level],
     ["학생 연락처", q.student_phone],
+    ["알게 된 경로", q.referral_source],
+    ["기타 경로", q.referral_detail],
   ].filter(([, v]) => v);
 
   const tel = String(q.parent_phone || "").replace(/[^0-9+]/g, "");

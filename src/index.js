@@ -1610,6 +1610,7 @@ async function notifyReview(env, action, r) {
 
 const INQUIRY_KIND_KR = { consult: "상담신청", question: "문의" };
 const ENGLISH_LEVELS = ["없음", "1~2년", "3~4년", "5년 이상"];
+const REFERRAL_SOURCES = ["네이버·구글 등 검색", "지인 추천", "근처를 지나가다 알게 됨", "블로그·SNS", "지역 커뮤니티·맘카페", "기타"];
 const INQUIRY_STATUS = new Set(["new", "doing", "done"]);
 
 /**
@@ -1634,6 +1635,10 @@ async function createInquiry(request, env) {
 
   const message = norm(b.message);
   if (message && message.length > 2000) throw bad("내용이 너무 깁니다. 2000자 안으로 줄여 주세요.");
+  const referralSource = kind === "consult" ? (norm(b.referral_source) || "") : "";
+  if (referralSource && !REFERRAL_SOURCES.includes(referralSource)) throw bad("알게 된 경로를 다시 골라 주세요.");
+  const referralDetail = referralSource === "기타" ? (norm(b.referral_detail) || "") : "";
+  if (referralDetail.length > 200) throw bad("기타 경로는 200자 안으로 적어 주세요.");
 
   // 같은 번호로 1분 안에 또 들어오면 실수로 두 번 누른 것으로 본다.
   const recent = await env.DB.prepare(
@@ -1646,8 +1651,8 @@ async function createInquiry(request, env) {
 
   const res = await env.DB.prepare(
     `INSERT INTO inquiries
-       (kind, student_name, school, grade, english_level, student_phone, parent_phone, message, user_agent)
-     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)`
+       (kind, student_name, school, grade, english_level, student_phone, parent_phone, message, user_agent, referral_source, referral_detail)
+     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)`
   )
     .bind(
       kind,
@@ -1658,7 +1663,9 @@ async function createInquiry(request, env) {
       norm(b.student_phone),
       parentPhone,
       message,
-      (request.headers.get("user-agent") || "").slice(0, 200)
+      (request.headers.get("user-agent") || "").slice(0, 200),
+      referralSource,
+      referralDetail
     )
     .run();
 
@@ -1673,6 +1680,8 @@ async function createInquiry(request, env) {
     english_level: level,
     student_phone: norm(b.student_phone),
     parent_phone: parentPhone,
+    referral_source: referralSource,
+    referral_detail: referralDetail,
     message,
   });
   if (sent) {
@@ -1734,6 +1743,8 @@ async function notifyNewInquiry(env, q) {
     ["영어 학습 수준", q.english_level],
     ["학생 연락처", q.student_phone],
     ["부모님 연락처", q.parent_phone],
+    ["알게 된 경로", q.referral_source],
+    ["기타 경로", q.referral_detail],
   ].filter(([, v]) => v);
 
   const lines = [
@@ -1742,7 +1753,7 @@ async function notifyNewInquiry(env, q) {
     ...rows.map(([k, v]) => `${k}: <b>${tgEsc(v)}</b>`),
   ];
   if (q.message) {
-    lines.push("", `${q.kind === "consult" ? "기타 의견" : "문의 내용"}:`, tgEsc(q.message));
+    lines.push("", `${q.kind === "consult" ? "추가 문의사항" : "문의 내용"}:`, tgEsc(q.message));
   }
   lines.push("", `접수번호 #${q.id}`);
 

@@ -1,3 +1,4 @@
+import { COURSE_GUIDE } from "./academy-content.js";
 /**
  * 로그인 없이 볼 수 있는 화면들
  *   학원소개(홈) · 학원 소식·사진
@@ -66,7 +67,7 @@ export async function renderHome(view) {
           <h1>Julie&rsquo;s English Academy<span class="kr">쥴리 잉글리쉬 영어교습소</span></h1>
           <p class="lead">
             재미있는 파닉스, 읽기가 되는 파닉스부터 초·중·고 내신 선행까지.
-            동백에서 2007년부터 수업을 해오는 중이며, 학생 한명 한명을 내 자녀처럼 사랑으로 가르칩니다
+            용인 동백 초당마을에서 2007년부터 원장이 직접 수업합니다. 학생 한 명 한 명을 내 자녀처럼 사랑으로 가르칩니다.
           </p>
           <div class="hero-actions">
             <a class="btn" href="/contact">상담신청 하기</a>
@@ -224,6 +225,8 @@ export async function renderHome(view) {
         </div>
       </div>
     </section>
+
+    <section class="section"><div class="wrap">${COURSE_GUIDE}</div></section>
 
     <section class="section soft">
       <div class="wrap">

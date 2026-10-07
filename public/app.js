@@ -1,3 +1,4 @@
+import { syncPageMeta } from "./js/seo.js";
 /**
  * 진입점 — 주소를 보고 알맞은 화면을 그리고, 상단 메뉴 상태를 맞춘다.
  *
@@ -91,31 +92,6 @@ window.__navigate = navigateTo;
 
 window.addEventListener("popstate", render);
 
-/* ---------- 주소별 제목 ----------
-   서버(src/index.js)도 같은 값을 심어 주지만, 그건 주소창에 직접 치고 들어올 때 얘기다.
-   메뉴를 눌러 화면만 바꾸는 경우에는 여기서 제목을 맞춰 줘야
-   브라우저 탭·즐겨찾기·방문 기록에 엉뚱한 이름이 남지 않는다.
-   서버 쪽 PAGES 와 내용이 같아야 하므로, 한쪽을 고치면 다른 쪽도 같이 고칠 것. */
-const PAGE_TITLES = {
-  "/": "쥴리 잉글리쉬 · 용인 동백 영어학원 (초등·중등 영어교습소)",
-  "/about": "학원 소식·사진 · 쥴리 잉글리쉬 (용인 동백 영어학원)",
-  "/reviews": "재원생 · 졸업생 · 학부모 후기 · 쥴리 잉글리쉬 (용인 동백 영어학원)",
-  "/contact": "상담신청 · 문의 · 쥴리 잉글리쉬 (용인 동백 영어학원)",
-  "/login": "로그인 · 쥴리 잉글리쉬",
-  "/signup": "회원가입 · 쥴리 잉글리쉬",
-  "/my": "나의 수업 · 쥴리 잉글리쉬",
-  "/me": "내 정보 · 쥴리 잉글리쉬",
-  "/admin": "관리자 · 쥴리 잉글리쉬",
-};
-
-function syncTitle(path) {
-  const key = path.startsWith("/admin") ? "/admin" : path;
-  document.title = PAGE_TITLES[key] || "찾을 수 없는 페이지 · 쥴리 잉글리쉬";
-
-  const canonical = document.querySelector('link[rel="canonical"]');
-  if (canonical) canonical.setAttribute("href", `https://www.julieenglish.co.kr${path === "/" ? "/" : path}`);
-}
-
 /* ---------- 라우터 ---------- */
 
 /* 화면을 그릴 때마다 번호를 하나씩 올린다.
@@ -128,7 +104,7 @@ async function render() {
   const token = ++renderToken;
   const path = location.pathname.replace(/\/+$/, "") || "/";
   syncMenu(path);
-  syncTitle(path);
+  syncPageMeta(path);
   // 어느 메뉴를 얼마나 보는지 센다 (관리자 화면 → 방문 통계).
   trackVisit(path);
   window.scrollTo({ top: 0, behavior: "instant" in window ? "instant" : "auto" });

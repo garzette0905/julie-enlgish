@@ -1,36 +1,10 @@
-# 쥴리 잉글리쉬 — 검색엔진 안내
-# 이 파일을 우리가 직접 두지 않으면 Cloudflare 가 만든 기본 파일이 대신 응답한다.
-# 그 파일에는 사이트맵 위치가 없어서 검색 등록에 불리하다.
-
+# 공개 화면과 JS/CSS는 크롤링을 허용한다.
+# 로그인·회원·관리자 화면은 서버의 noindex로 검색에서 제외한다.
+# robots.txt로 막으면 검색로봇이 noindex를 확인할 수 없다.
 User-agent: *
 Allow: /
-
-# 로그인해야 보이는 화면과 API 는 검색에 잡힐 이유가 없다.
 Disallow: /api/
-Disallow: /login
-Disallow: /signup
-Disallow: /my
-Disallow: /me
-Disallow: /admin
-
-# 네이버 검색로봇
-User-agent: Yeti
-Allow: /
-Disallow: /api/
-Disallow: /login
-Disallow: /signup
-Disallow: /my
-Disallow: /me
-Disallow: /admin
-
-# 다음 검색로봇
-User-agent: Daumoa
-Allow: /
-Disallow: /api/
-Disallow: /login
-Disallow: /signup
-Disallow: /my
-Disallow: /me
-Disallow: /admin
+# 공개 사진·영상은 페이지 렌더링에 필요하다.
+Allow: /api/media/file/
 
 Sitemap: https://www.julieenglish.co.kr/sitemap.xml

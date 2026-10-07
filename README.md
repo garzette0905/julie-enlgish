@@ -80,6 +80,34 @@ npm run dev          # http://localhost:8787
 npm run db:remote
 ```
 
+## 검색 색인 검증
+
+공개 주소는 `/`, `/about`, `/reviews`, `/contact` 네 개입니다. 제목·설명·표준 주소는
+`public/js/seo.js`를 서버와 브라우저가 함께 사용합니다. 홈페이지의 수업 안내는
+`public/js/academy-content.js`에서 관리하며 초기 HTML과 실제 화면에 모두 표시합니다.
+후기 본문과 소식 제목·설명도 서버에서 HTML로 제공합니다.
+
+- HTTP, www 없는 주소, 이전 Workers 주소의 공개 페이지는 HTTPS www 주소로 301 이동합니다.
+- `/contact/question`은 문의 탭을 열고 `/contact`를 표준 주소로 지정합니다.
+- 로그인·회원·관리자 화면은 robots.txt에서 크롤링을 허용하고 HTML 및 HTTP 헤더의
+  `noindex`로 검색에서 제외합니다. API 인증은 기존대로 적용합니다.
+- 공개 사진·영상(`/api/media/file/`)은 검색로봇도 읽을 수 있습니다.
+- 사이트맵에는 공개 표준 주소만 넣습니다. 동적 콘텐츠에 부정확한 고정 `lastmod`는 넣지 않습니다.
+
+```bash
+npm test
+npm run dev
+# 다른 터미널에서 실제 Worker 응답 검사
+npm run check:seo
+# 배포 후 운영 사이트 검사 (읽기 전용)
+npm run check:seo -- https://www.julieenglish.co.kr
+```
+
+Search Console 2026-10-04 보고서: 색인된 페이지 4개, robots.txt 차단 4개
+(`/admin`, `/me`, `/login`, `/my`), HTTP 리디렉션 2개, www 없는 대체 주소 1개.
+비공개 화면과 이전 주소가 색인에서 제외되는 것은 정상입니다. 변경 후 보고서 반영은
+Google의 재크롤링에 따라 이루어지며 색인이나 검색 순위를 보장하지 않습니다.
+
 ## Cloudflare 자원
 
 | 종류 | 이름 | 바인딩 |

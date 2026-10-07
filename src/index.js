@@ -1,3 +1,6 @@
+import { SITE_ORIGIN, pageMetaFor } from "../public/js/seo.js";
+import { COURSE_GUIDE } from "../public/js/academy-content.js";
+
 /**
  * 쥴리 잉글리쉬 홈페이지 — Cloudflare Worker (API 전용)
  *
@@ -77,15 +80,11 @@ export default {
    HTMLRewriter 로 갈아 끼운다.
    ============================================================ */
 
-const SITE_ORIGIN = "https://www.julieenglish.co.kr";
 const SITE_IMAGE = `${SITE_ORIGIN}/assets/logo-512.png`;
 
 /** 주소별 제목·설명, 그리고 로봇이 읽어 갈 본문 */
 const PAGES = {
   "/": {
-    title: "쥴리 잉글리쉬 · 용인 동백 영어학원 (초등·중등 영어교습소)",
-    description:
-      "용인 동백 초당마을 영어교습소. 2007년부터 이어온 파닉스·초등·중등 영어. 원장 직강, 내신 선행. 상담문의 031-8005-9439",
     body: `
       <h1>쥴리 잉글리쉬 영어교습소 · 용인 동백</h1>
       <p>경기도 용인시 기흥구 초당마을에 있는 영어교습소입니다.
@@ -105,6 +104,7 @@ const PAGES = {
         <li>선행 중등 과정 — 중등 문법과 독해, 내신 대비</li>
         <li>선행 고등 과정 — 고등 문법·독해와 내신 대비</li>
       </ul>
+      ${COURSE_GUIDE}
       <h2>선생님</h2>
       <ul>
         <li>한국외국어대학교 학사 / 석사 졸업</li>
@@ -119,9 +119,6 @@ const PAGES = {
   },
 
   "/about": {
-    title: "학원 소식·사진 · 쥴리 잉글리쉬 (용인 동백 영어학원)",
-    description:
-      "쥴리 잉글리쉬의 수업 모습과 학원 공간을 사진·영상으로 소개합니다. 용인 동백 초당마을 영어교습소.",
     body: `
       <h1>학원 소식·사진</h1>
       <p>쥴리 잉글리쉬의 수업 모습과 학원 공간을 사진·영상으로 소개합니다.</p>
@@ -131,9 +128,6 @@ const PAGES = {
   },
 
   "/reviews": {
-    title: "재원생 · 졸업생 · 학부모 후기 · 쥴리 잉글리쉬 (용인 동백 영어학원)",
-    description:
-      "쥴리 잉글리쉬에 다니고 있는 학생과 졸업생, 학부모님이 남긴 후기입니다. 용인 동백 초당마을 영어교습소.",
     body: `
       <h1>재원생 · 졸업생 · 학부모 후기</h1>
       <p>쥴리 잉글리쉬와 함께한 이야기를 남겨 주세요. 사진도 함께 올릴 수 있습니다.</p>
@@ -141,24 +135,12 @@ const PAGES = {
   },
 
   "/contact": {
-    title: "상담신청 · 문의 · 쥴리 잉글리쉬 (용인 동백 영어학원)",
-    description:
-      "용인 동백 쥴리 잉글리쉬 수업 상담을 신청하세요. 전화 031-8005-9439 또는 온라인으로 남겨 주시면 원장이 직접 연락드립니다.",
     body: `
       <h1>상담신청 · 문의</h1>
       <p>남겨주신 연락처로 원장이 직접 연락드립니다.</p>
       <p>전화 031-8005-9439 · 휴대폰 010-3323-9439</p>
       <p>위치: 경기도 용인시 기흥구 초당마을 삼부르네상스아파트 상가동 204호 (<a href="https://map.naver.com/p/entry/place/1029976865?c=15.00,0,0,0,dh&amp;placePath=%2Fhome%3Ffrom%3Dmap%26fromPanelNum%3D1%26additionalHeight%3D76%26timestamp%3D202608270523%26locale%3Dko%26svcName%3Dmap_pcv5" target="_blank" rel="noopener noreferrer">지도보기</a>)</p>`,
   },
-};
-
-// 로그인해야 보이는 화면은 검색에 잡힐 이유가 없다.
-const PRIVATE_PAGES = {
-  "/login": "로그인 · 쥴리 잉글리쉬",
-  "/signup": "회원가입 · 쥴리 잉글리쉬",
-  "/my": "나의 수업 · 쥴리 잉글리쉬",
-  "/me": "내 정보 · 쥴리 잉글리쉬",
-  "/admin": "관리자 · 쥴리 잉글리쉬",
 };
 
 /** 검색엔진 소유확인 코드는 자주 바뀌지 않으니 잠깐 들고 있는다. */
@@ -181,21 +163,25 @@ async function getVerifyTags(env) {
 }
 
 function pageInfoFor(pathname) {
-  const path = pathname.replace(/\/+$/, "") || "/";
-  if (PAGES[path]) return { path, ...PAGES[path], index: true };
-
-  // /admin/tuition 처럼 뒤에 더 붙는 주소도 비공개로 본다.
-  for (const p of Object.keys(PRIVATE_PAGES)) {
-    if (path === p || path.startsWith(p + "/")) {
-      return { path, title: PRIVATE_PAGES[p], description: "", body: "", index: false };
-    }
-  }
-  return null;
+  const meta = pageMetaFor(pathname);
+  if (!meta) return null;
+  return { ...meta, body: PAGES[meta.path]?.body || "" };
 }
 
 async function servePage(request, env, url) {
   let info = pageInfoFor(url.pathname);
   let status = 200;
+
+  // 공유된 예전 주소는 유지하면서 공개 페이지의 검색 주소를 www HTTPS로 모은다.
+  const publicResource = info?.index || ["/robots.txt", "/sitemap.xml", "/index.html"].includes(url.pathname);
+  const legacyHost = ["julieenglish.co.kr", "www.julieenglish.co.kr", "julie-enlgish.wepiclab.workers.dev"].includes(url.hostname);
+  if (["GET", "HEAD"].includes(request.method) && publicResource) {
+    const path = url.pathname === "/index.html" ? "/" : (url.pathname.replace(/\/+$/, "") || "/");
+    if ((legacyHost && url.origin !== SITE_ORIGIN) || path !== url.pathname) {
+      const target = new URL(path + url.search, legacyHost ? SITE_ORIGIN : url.origin);
+      return Response.redirect(target.href, 301);
+    }
+  }
 
   // 아는 화면 주소가 아니면 파일 그대로 (styles.css, robots.txt, /assets/... 등)
   if (!info) {
@@ -224,6 +210,7 @@ async function servePage(request, env, url) {
 
   const verify = await getVerifyTags(env);
   const canonical = info.path === "/" ? `${SITE_ORIGIN}/` : `${SITE_ORIGIN}${info.path}`;
+  const publicContent = info.index ? await publicPageContent(env, info.path) : "";
 
   const out = new HTMLRewriter()
     .on("title", {
@@ -233,7 +220,7 @@ async function servePage(request, env, url) {
     })
     .on('meta[name="description"]', {
       element(el) {
-        if (info.description) el.setAttribute("content", info.description);
+        el.setAttribute("content", info.description);
       },
     })
     .on('meta[name="robots"]', {
@@ -277,7 +264,7 @@ async function servePage(request, env, url) {
       element(el) {
         // 로봇이 읽어 갈 본문. 브라우저에서는 JS 가 곧바로 갈아 끼운다.
         el.setInnerContent(
-          info.body ? `<div class="section"><div class="wrap">${info.body}</div></div>` : "",
+          info.body ? `<div class="section"><div class="wrap">${info.body}${publicContent}</div></div>` : "",
           { html: true }
         );
       },
@@ -286,9 +273,37 @@ async function servePage(request, env, url) {
 
   const headers = new Headers(out.headers);
   headers.set("content-type", "text/html; charset=utf-8");
+  // 본문을 바꿨으므로 원본 index.html의 검증값과 크기는 재사용하지 않는다.
+  headers.delete("etag");
+  headers.delete("content-length");
+  headers.set("x-robots-tag", info.index ? "index, follow" : "noindex, nofollow");
   // 화면마다 내용이 다르므로 중간 캐시가 뒤섞지 않도록 짧게만 캐시한다.
   headers.set("cache-control", "public, max-age=0, must-revalidate");
-  return new Response(out.body, { status, headers });
+  return new Response(request.method === "HEAD" ? null : out.body, { status, headers });
+}
+
+async function publicPageContent(env, path) {
+  let content = "";
+  try {
+    if (path === "/reviews") {
+      // 이미 공개된 후기의 제목과 본문만 사용한다. 비밀번호 등은 조회하지 않는다.
+      const { results = [] } = await env.DB.prepare(
+        "SELECT title, body FROM reviews ORDER BY sort_order, created_at DESC, id DESC LIMIT 30"
+      ).all();
+      content = results.map((r) => `<article><h2>${escAttr(r.title || "수업 후기")}</h2><p>${escAttr(r.body).replace(/\r?\n/g, "<br>")}</p></article>`).join("");
+    } else if (path === "/about") {
+      const { results = [] } = await env.DB.prepare(
+        "SELECT title, description FROM media ORDER BY sort_order, id DESC LIMIT 30"
+      ).all();
+      content = results.filter((m) => m.title || m.description).map((m) =>
+        `<article><h2>${escAttr(m.title || "학원 소식")}</h2><p>${escAttr(m.description || "")}</p></article>`
+      ).join("");
+    }
+  } catch (err) {
+    // DB 장애가 공개 페이지 전체를 오류 화면으로 바꾸지 않도록 기본 안내를 유지한다.
+    console.error("Public page content unavailable", err.message);
+  }
+  return content + `<nav aria-label="학원 안내"><p><a href="/">학원소개와 수업 과정</a> · <a href="/about">학원 소식·사진과 오시는 길</a> · <a href="/reviews">수업 후기</a> · <a href="/contact">상담신청 · 문의</a></p></nav>`;
 }
 
 const escAttr = (v) => String(v).replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
